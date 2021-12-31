@@ -1,0 +1,19 @@
+[package]
+name = "salamander"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+bevy = { version = "0.5.0", features = ["dynamic"] }
+rand = "0.8"
+getrandom = { version = "0.2", features = ["js"] }
+
+# Set the default for dependencies.
+[profile.dev.package."*"]
+opt-level = 2
+
+# Set the settings for build scripts and proc-macros.
+[profile.dev.build-override]
+opt-level = 3
