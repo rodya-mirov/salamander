@@ -1,4 +1,7 @@
+use crate::components::{MapChangedEvent, TILE_SIZE};
 use bevy::prelude::*;
+
+mod bevy_util;
 
 pub(crate) mod components;
 pub(crate) mod resources;
@@ -20,7 +23,10 @@ impl Plugin for MapPlugin {
         use resources::*;
 
         app.insert_resource(PlayerInputState::default())
+            .insert_resource(Map::default())
+            .add_event::<MapChangedEvent>()
             // setup systems
+            .add_startup_system(setup_systems::make_map.system())
             .add_startup_system(setup_systems::world_setup.system())
             .add_startup_system(camera_setup.system())
             // input systems
@@ -39,13 +45,21 @@ impl Plugin for MapPlugin {
             .add_system_set(
                 SystemSet::new()
                     .label("npc actions")
-                    .after("player actions"),
+                    .after("player actions")
+                    .with_system(running_systems::noop_system.system()),
+            )
+            // various cleanup actions
+            .add_system_set(
+                SystemSet::new()
+                    .label("cleanup")
+                    .after("npc actions")
+                    .with_system(running_systems::rebuild_visual_tiles.system()),
             )
             // graphical systems
             .add_system_set(
                 SystemSet::new()
                     .label("graphics updates")
-                    .after("npc actions")
+                    .after("cleanup")
                     .with_system(running_systems::aim_camera.system())
                     .with_system(running_systems::world_pos_to_visual_system.system()),
             );
@@ -56,8 +70,8 @@ pub fn main() {
     App::build()
         .insert_resource(WindowDescriptor {
             title: "Salamander".to_string(),
-            width: components::TILE_SIZE * components::MAP_WIDTH_TILES as f32,
-            height: components::TILE_SIZE * components::MAP_HEIGHT_TILES as f32,
+            width: TILE_SIZE * 40.0,
+            height: TILE_SIZE * 30.0,
             vsync: true,
             ..Default::default()
         })

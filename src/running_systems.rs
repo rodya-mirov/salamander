@@ -1,5 +1,6 @@
 use bevy::prelude::*;
 
+use crate::bevy_util::make_text_bundle;
 use crate::components::*;
 use crate::resources::*;
 
@@ -33,19 +34,27 @@ pub fn get_player_input(kb_input: Res<Input<KeyCode>>, mut input_state: ResMut<P
     }
 }
 
-pub fn handle_input(input: Res<PlayerInputState>, mut q: Query<(&Player, &mut WorldPos)>) {
+pub fn handle_input(
+    input: Res<PlayerInputState>,
+    mut q: Query<(&Player, &mut WorldPos)>,
+    map: Res<Map>,
+) {
     for (_, mut wp) in q.iter_mut() {
+        let mut new_wp = *wp;
         if input.left_pressed {
-            wp.x -= 1;
+            new_wp.x -= 1;
         }
         if input.right_pressed {
-            wp.x += 1;
+            new_wp.x += 1;
         }
         if input.up_pressed {
-            wp.y += 1;
+            new_wp.y += 1;
         }
         if input.down_pressed {
-            wp.y -= 1;
+            new_wp.y -= 1;
+        }
+        if map.passable(new_wp.x, new_wp.y) {
+            *wp = new_wp;
         }
     }
 }
@@ -71,4 +80,42 @@ pub fn world_pos_to_visual_system(mut wp_query: Query<(&WorldPos, &mut Transform
         transform.translation.x = wp.x as f32 * TILE_SIZE;
         transform.translation.y = wp.y as f32 * TILE_SIZE;
     }
+}
+
+pub fn rebuild_visual_tiles(
+    mut commands: Commands,
+    mut rebuild_events: EventReader<MapChangedEvent>,
+    q: Query<(Entity, &VisualTile)>,
+    map: Res<Map>,
+    asset_server: Res<AssetServer>,
+) {
+    // even if we send a zillion, we only rebuild once
+    if rebuild_events.iter().next().is_none() {
+        return;
+    }
+
+    // wipe out anything previous existing, if any
+    for (e, _) in q.iter() {
+        commands.entity(e).despawn();
+    }
+
+    // then build new tiles
+    for ((x, y), tile_type) in map.tiles() {
+        // TODO: use the tileset because it's awesome
+        let sigil = match tile_type {
+            TileType::Wall => 'X',
+            TileType::Floor => '.',
+        };
+
+        commands
+            .spawn()
+            .insert(VisualTile(tile_type))
+            .insert_bundle(make_text_bundle(sigil, &asset_server))
+            .insert(WorldPos { x, y })
+            .insert(Transform::default());
+    }
+}
+
+pub fn noop_system() {
+    // so the stage is nonempty
 }
