@@ -1,10 +1,12 @@
-use crate::components::{MapChangedEvent, TILE_SIZE};
 use bevy::prelude::*;
 
 mod bevy_util;
 
 pub(crate) mod components;
 pub(crate) mod resources;
+
+mod map;
+
 mod running_systems;
 mod setup_systems;
 
@@ -20,16 +22,27 @@ fn camera_setup(mut commands: Commands) {
 
 impl Plugin for MapPlugin {
     fn build(&self, app: &mut AppBuilder) {
+        const ASSET_LOADING: &str = "load assets";
+        const WORLD_SETUP: &str = "setup map";
+
+        use components::*;
+        use map::*;
         use resources::*;
 
         app.insert_resource(PlayerInputState::default())
             .insert_resource(Map::default())
             .add_event::<MapChangedEvent>()
+            .add_event::<VisibilityChangedEvent>()
+            // asset loading
+            .add_startup_stage(ASSET_LOADING, SystemStage::single_threaded())
+            .add_startup_system_to_stage(ASSET_LOADING, setup_systems::load_tileset.system())
             // setup systems
-            .add_startup_system(setup_systems::make_map.system())
-            .add_startup_system(setup_systems::world_setup.system())
-            .add_startup_system(camera_setup.system())
+            .add_startup_stage_after(ASSET_LOADING, WORLD_SETUP, SystemStage::single_threaded())
+            .add_startup_system_to_stage(WORLD_SETUP, setup_systems::make_map.system())
+            .add_startup_system_to_stage(WORLD_SETUP, camera_setup.system())
             // input systems
+            // TODO: remove this once we have real UI around this
+            .add_system(bevy::input::system::exit_on_esc_system.system())
             .add_system_set(
                 SystemSet::new()
                     .label("get input")
@@ -48,18 +61,38 @@ impl Plugin for MapPlugin {
                     .after("player actions")
                     .with_system(running_systems::noop_system.system()),
             )
-            // various cleanup actions
+            // "consequences of player / npc actions" systems
+            .add_system(
+                running_systems::compute_viewsheds
+                    .system()
+                    .label("visibility")
+                    .label("compute visibility")
+                    .after("player actions")
+                    .after("npc actions"),
+            )
+            .add_system(
+                running_systems::update_map_visibility
+                    .system()
+                    .label("map visibility")
+                    .after("compute visibility"),
+            )
+            // various cleanup actions which make sure certain visual systems are represented
+            // TODO BUG: there is a screen flash every time I move, from the visual tiles getting wiped and not being rebuilt until the next turn
             .add_system_set(
                 SystemSet::new()
                     .label("cleanup")
-                    .after("npc actions")
+                    .after("map visibility")
                     .with_system(running_systems::rebuild_visual_tiles.system()),
             )
-            // graphical systems
-            .add_system_set(
+            // graphical systems; note they're in a separate stage so that commands will be issued correctly
+            .add_stage_after(
+                CoreStage::Update,
+                "rebuild graphics",
+                SystemStage::single_threaded(),
+            )
+            .add_system_set_to_stage(
+                "rebuild graphics",
                 SystemSet::new()
-                    .label("graphics updates")
-                    .after("cleanup")
                     .with_system(running_systems::aim_camera.system())
                     .with_system(running_systems::world_pos_to_visual_system.system()),
             );
@@ -67,11 +100,13 @@ impl Plugin for MapPlugin {
 }
 
 pub fn main() {
+    use map::TILE_SIZE;
+
     App::build()
         .insert_resource(WindowDescriptor {
-            title: "Salamander".to_string(),
-            width: TILE_SIZE * 40.0,
-            height: TILE_SIZE * 30.0,
+            title: "".to_string(),
+            width: TILE_SIZE * 31.0,
+            height: TILE_SIZE * 25.0,
             vsync: true,
             ..Default::default()
         })

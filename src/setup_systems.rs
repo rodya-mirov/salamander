@@ -1,49 +1,43 @@
 use bevy::prelude::*;
-use rand::Rng;
 
-use crate::bevy_util::make_text_bundle;
-use crate::components::{Player, WorldPos, MAP_HEIGHT_TILES, MAP_WIDTH_TILES};
-use crate::resources::{Map, TileType};
-use crate::MapChangedEvent;
+use crate::bevy_util::make_basic_sprite_bundle;
+use crate::components::*;
+use crate::map::*;
+use crate::resources::*;
 
-pub fn make_map(mut map_res: ResMut<Map>, mut map_events: EventWriter<MapChangedEvent>) {
-    let mut map = Map::new();
-    for x in 0..MAP_WIDTH_TILES {
-        map.set_tile(x, 0, TileType::Wall);
-        map.set_tile(x, MAP_HEIGHT_TILES - 1, TileType::Wall);
-    }
-    for y in 0..MAP_HEIGHT_TILES {
-        map.set_tile(0, y, TileType::Wall);
-        map.set_tile(MAP_WIDTH_TILES - 1, y, TileType::Wall);
-    }
+pub fn make_map(
+    mut map_res: ResMut<Map>,
+    mut map_events: EventWriter<MapChangedEvent>,
+    mut commands: Commands,
+    sheet: Res<BasicTilesAtlas>,
+) {
+    let (map, rooms) = make_new_map();
 
-    let mut rng = rand::thread_rng();
+    let room = rooms[0];
+    let (x, y) = room.center();
 
-    for x in 1..(MAP_WIDTH_TILES - 1) {
-        for y in 1..(MAP_HEIGHT_TILES - 1) {
-            let tt = if rng.gen_bool(0.15) {
-                TileType::Wall
-            } else {
-                TileType::Floor
-            };
-            map.set_tile(x, y, tt);
-        }
-    }
+    commands
+        .spawn()
+        .insert(Player)
+        .insert_bundle(make_basic_sprite_bundle(2, &sheet.0, Color::ALICE_BLUE))
+        .insert(Viewshed::new(7))
+        .insert(WorldPos { x, y })
+        // TODO: coherent layering management system, not like this
+        .insert(Transform::from_xyz(0.0, 0.0, 100.0));
 
     *map_res = map;
 
     map_events.send(MapChangedEvent);
 }
 
-pub fn world_setup(mut commands: Commands, asset_server: Res<AssetServer>) {
-    commands
-        .spawn()
-        .insert(Player)
-        .insert_bundle(make_text_bundle('@', &asset_server))
-        .insert(WorldPos {
-            x: (MAP_WIDTH_TILES - 1) / 2,
-            y: (MAP_HEIGHT_TILES - 1) / 2,
-        })
-        // TODO: coherent layering management system, not like this
-        .insert(Transform::from_xyz(0.0, 0.0, 100.0));
+pub fn load_tileset(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    mut texture_atlases: ResMut<Assets<TextureAtlas>>,
+) {
+    let sheet_handle: Handle<Texture> = asset_server.load("tiles/basic_tiles.png");
+    commands.insert_resource(BasicTilesSheet(sheet_handle.clone()));
+    let texture_atlas = TextureAtlas::from_grid(sheet_handle, Vec2::new(32.0, 32.0), 16, 20);
+    let texture_atlas_handle = texture_atlases.add(texture_atlas);
+    commands.insert_resource(BasicTilesAtlas(texture_atlas_handle));
 }
