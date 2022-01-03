@@ -161,7 +161,10 @@ pub fn rebuild_visual_tiles(
 
         if tile_data.seen {
             let color = if tile_data.visible {
-                Color::WHITE
+                match tile_data.tile_type {
+                    TileType::Floor => Color::rgb(0.4, 0.75, 0.4),
+                    TileType::Wall => Color::rgb(0.8, 0.79, 0.57),
+                }
             } else {
                 Color::GRAY
             };

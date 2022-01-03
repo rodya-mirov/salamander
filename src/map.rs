@@ -205,8 +205,8 @@ impl Default for Map {
 pub fn make_new_map() -> (Map, Vec<BoundingBox>) {
     let mut map = Map::new();
 
-    const MIN_SIZE: i32 = 4;
-    const MAX_SIZE: i32 = 7;
+    const MIN_SIZE: i32 = 3;
+    const MAX_SIZE: i32 = 5;
     const MAX_ROOMS: i32 = 30;
 
     let mut rng = rand::thread_rng();
@@ -220,9 +220,9 @@ pub fn make_new_map() -> (Map, Vec<BoundingBox>) {
 
         let room_box = BoundingBox {
             x_min: x,
-            x_max: x + w + 1,
+            x_max: x + w - 1,
             y_min: y,
-            y_max: y + h + 1,
+            y_max: y + h - 1,
         };
 
         // TODO: needs a border; this allows two rooms' walls to be inside the other one's room
