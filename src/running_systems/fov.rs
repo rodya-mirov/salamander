@@ -469,6 +469,8 @@ pub fn compute_viewsheds(
         vs.visible_tiles = refresh_area(*wp, vs.range as f32, &*map);
 
         vs.dirty = false;
+
+        // TODO perf: in theory we only need to send this for the player?
         visibility_events.send(VisibilityChangedEvent);
     }
 }

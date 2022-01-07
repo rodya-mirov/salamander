@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use bevy::prelude::*;
 
 use crate::bevy_util::make_basic_sprite_bundle;
@@ -42,6 +44,7 @@ pub fn get_player_input(kb_input: Res<Input<KeyCode>>, mut input_state: ResMut<P
 pub fn handle_input(
     input: Res<PlayerInputState>,
     mut q: Query<(&Player, &mut WorldPos, Option<&mut Viewshed>)>,
+    mut moved_events: EventWriter<PlayerMovedEvent>,
     map: Res<Map>,
 ) {
     for (_, mut wp, vs) in q.iter_mut() {
@@ -60,6 +63,7 @@ pub fn handle_input(
         }
         if *wp != new_wp && map.passable(new_wp) {
             *wp = new_wp;
+            moved_events.send(PlayerMovedEvent);
 
             if let Some(mut vs) = vs {
                 vs.dirty = true;
@@ -135,6 +139,25 @@ pub fn world_pos_to_visual_system(mut wp_query: Query<(&WorldPos, &mut Transform
     }
 }
 
+/// Make the visible (bevy rendering) component reflect the actual viewing state, if relevant
+pub fn hide_unseen_things(
+    player_query: Query<&Viewshed, (With<Player>,)>,
+    mut to_hide_query: Query<(&WorldPos, &mut Visible), (With<RequiresSeen>,)>,
+) {
+    let player_vs = match player_query.iter().next() {
+        Some(vs) => vs.visible_tiles.clone(),
+        None => HashSet::new(),
+    };
+
+    for (wp, mut visible) in to_hide_query.iter_mut() {
+        if player_vs.contains(&*wp) {
+            visible.is_visible = true;
+        } else {
+            visible.is_visible = false;
+        }
+    }
+}
+
 pub fn rebuild_visual_tiles(
     mut commands: Commands,
     mut rebuild_events: EventReader<MapChangedEvent>,
@@ -179,6 +202,37 @@ pub fn rebuild_visual_tiles(
     }
 }
 
-pub fn noop_system() {
-    // so the stage is nonempty
+pub fn monster_ai(
+    mut player_moved: EventReader<PlayerMovedEvent>,
+    player_query: Query<&WorldPos, With<Player>>,
+    monster_query: Query<(Option<&EntityName>, &Viewshed, &WorldPos), With<MonsterAI>>,
+) {
+    if player_moved.iter().next().is_none() {
+        // don't bother
+        return;
+    }
+
+    let player_pos: WorldPos = match player_query.iter().next() {
+        Some(wp) => *wp,
+        // no player no action
+        None => return,
+    };
+
+    for (maybe_name, vs, wp) in monster_query.iter() {
+        if vs.dirty {
+            continue;
+        }
+
+        let name = maybe_name
+            .as_ref()
+            .map(|n| n.0.as_str())
+            .unwrap_or("Monster");
+
+        if vs.visible_tiles.contains(&player_pos) {
+            println!(
+                "{} at {} can see the player at {}! zomg",
+                name, *wp, player_pos
+            );
+        }
+    }
 }

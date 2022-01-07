@@ -17,9 +17,26 @@ pub struct WorldPos {
     pub y: i32,
 }
 
+impl std::fmt::Display for WorldPos {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "({}, {})", self.x, self.y)
+    }
+}
+
+/// Anything that needs a name, I guess
+pub struct EntityName(pub String);
+
+/// Marker struct that an entity should be managed by a Monster AI
+pub struct MonsterAI;
+
 /// Marker struct that an entity is a visual representation of a tile
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
 pub struct VisualTile(pub TileType);
+
+/// Marker struct indicating that an entity should not be displayed if it is not currently being
+/// looked at.
+#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
+pub struct RequiresSeen;
 
 /// Component describing a Viewshed, literally the set of tiles that are visible
 #[derive(Clone, Eq, PartialEq, Debug)]
@@ -30,11 +47,11 @@ pub struct Viewshed {
 }
 
 impl Viewshed {
-    pub fn new(range: i32) -> Self {
+    pub fn new() -> Self {
         Viewshed {
             visible_tiles: HashSet::new(),
             dirty: true,
-            range,
+            range: 7,
         }
     }
 }
@@ -46,3 +63,7 @@ pub struct MapChangedEvent;
 /// Event indicating something about visibility has changed, to indicate that stuff needs to be rebuilt
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
 pub struct VisibilityChangedEvent;
+
+/// Event indicating a player has moved
+#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
+pub struct PlayerMovedEvent;

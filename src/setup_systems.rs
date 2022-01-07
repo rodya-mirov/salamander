@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use rand::Rng;
 
 use crate::bevy_util::make_basic_sprite_bundle;
 use crate::components::*;
@@ -19,15 +20,60 @@ pub fn make_map(
     commands
         .spawn()
         .insert(Player)
+        .insert(EntityName("Player".to_string()))
         .insert_bundle(make_basic_sprite_bundle(2, &sheet.0, Color::ALICE_BLUE))
-        .insert(Viewshed::new(7))
+        .insert(Viewshed::new())
+        .insert(RequiresSeen)
         .insert(WorldPos { x, y })
         // TODO: coherent layering management system, not like this
         .insert(Transform::from_xyz(0.0, 0.0, 100.0));
 
+    let mut rng = rand::thread_rng();
+
+    let make_sprite = |kind| match kind {
+        MonsterKind::KnifeOrc => make_basic_sprite_bundle(0, &sheet.0, Color::LIME_GREEN),
+        MonsterKind::StrongOrc => make_basic_sprite_bundle(33, &sheet.0, Color::ORANGE_RED),
+    };
+
+    let mut idx = 0;
+    let mut make_name = |kind| {
+        let this_idx = idx;
+        idx += 1;
+        match kind {
+            MonsterKind::KnifeOrc => EntityName(format!("Knife-wielding orc #{}", this_idx)),
+            MonsterKind::StrongOrc => EntityName(format!("Ord #{}", this_idx)),
+        }
+    };
+
+    for room in rooms.iter().skip(1) {
+        let (x, y) = room.center();
+
+        let kind = match rng.gen_range(0..2) {
+            0 => MonsterKind::KnifeOrc,
+            1 => MonsterKind::StrongOrc,
+            _ => unreachable!(),
+        };
+
+        commands
+            .spawn()
+            .insert(Viewshed::new())
+            .insert(WorldPos { x, y })
+            .insert(RequiresSeen)
+            .insert(MonsterAI)
+            .insert_bundle(make_sprite(kind))
+            .insert(make_name(kind))
+            .insert(Transform::from_xyz(0.0, 0.0, 40.0));
+    }
+
     *map_res = map;
 
     map_events.send(MapChangedEvent);
+}
+
+#[derive(Copy, Clone, Eq, PartialEq, Debug, Hash)]
+enum MonsterKind {
+    StrongOrc,
+    KnifeOrc,
 }
 
 pub fn load_tileset(

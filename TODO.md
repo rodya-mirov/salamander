@@ -1,10 +1,10 @@
-Finished 2.4
+Finished 2.5
 
 Some stuff I want to add that's not covered
 - Unit tests of the radial FOV logic stuff?
 - Better management of the worldpos / transform / layers situation; maybe use bundles?
 
-Then on to 2.5
+Then on to 2.6
 
 Start thinking about dialogue boxes (with choices and callbacks) since that's one big thing I think I never figured out
 in previous attempts (the choices could do ALMOST ANYTHING in the world)

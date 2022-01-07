@@ -33,6 +33,7 @@ impl Plugin for MapPlugin {
             .insert_resource(Map::default())
             .add_event::<MapChangedEvent>()
             .add_event::<VisibilityChangedEvent>()
+            .add_event::<PlayerMovedEvent>()
             // asset loading
             .add_startup_stage(ASSET_LOADING, SystemStage::single_threaded())
             .add_startup_system_to_stage(ASSET_LOADING, setup_systems::load_tileset.system())
@@ -59,7 +60,7 @@ impl Plugin for MapPlugin {
                 SystemSet::new()
                     .label("npc actions")
                     .after("player actions")
-                    .with_system(running_systems::noop_system.system()),
+                    .with_system(running_systems::monster_ai.system()),
             )
             // "consequences of player / npc actions" systems
             .add_system(
@@ -94,6 +95,7 @@ impl Plugin for MapPlugin {
                 "rebuild graphics",
                 SystemSet::new()
                     .with_system(running_systems::aim_camera.system())
+                    .with_system(running_systems::hide_unseen_things.system())
                     .with_system(running_systems::world_pos_to_visual_system.system()),
             );
     }
