@@ -91,3 +91,9 @@ pub struct CombatStats {
     pub defense: i32,
     pub power: i32,
 }
+
+#[derive(Component, Copy, Clone, Eq, PartialEq, Debug)]
+pub struct WantsToMelee {
+    pub attacker: Entity,
+    pub defender: Entity,
+}

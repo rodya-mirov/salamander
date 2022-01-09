@@ -1,5 +1,9 @@
 use bevy::ecs::schedule::IntoSystemDescriptor;
-use bevy::prelude::*;
+use bevy::{
+
+    diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin},
+    prelude::*
+};
 
 mod bevy_util;
 
@@ -71,6 +75,7 @@ impl Plugin for MapPlugin {
             .add_event::<VisibilityChangedEvent>()
             .add_event::<PlayerTookTurnEvent>()
             .add_event::<EntityMovedEvent>()
+            .add_event::<WantsToMelee>()
             // asset loading
             .add_startup_stage(ASSET_LOADING, SystemStage::single_threaded())
             .add_startup_system_to_stage(ASSET_LOADING, setup_systems::load_tileset.system())
@@ -117,5 +122,7 @@ pub fn main() {
         })
         .add_plugins(DefaultPlugins)
         .add_plugin(MapPlugin)
+        .add_plugin(FrameTimeDiagnosticsPlugin::default())
+        .add_plugin(LogDiagnosticsPlugin::default())
         .run();
 }

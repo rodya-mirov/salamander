@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use bevy::prelude::*;
 
@@ -48,14 +48,29 @@ pub fn get_player_input(kb_input: Res<Input<KeyCode>>, mut input_state: ResMut<P
 
 pub fn handle_input(
     input: Res<PlayerInputState>,
-    mut q: Query<(&Player, &mut WorldPos, Entity)>,
+    mut qs: QuerySet<(
+        QueryState<(&mut WorldPos, Entity), With<Player>>,
+        // we can keep this in another resource but it's becoming really tedious to maintain
+        // so many things in one place (again just imagining the monster AI loop)
+        // we could simplify things by making the game turn-based and giving EACH enemy a turn
+        // and having each tick be one turn (unless we're waiting for the player)
+        // but this might make the game feel really sluggish if there are 60 NPCs on the map
+        // realistically we can probably get >1 turn in a single timestep but programmatically
+        // I don't know how to achieve that
+        QueryState<(&WorldPos, Entity), With<CombatStats>>,
+    )>,
     map: Res<Map>,
     mut blocked: ResMut<BlockedTiles>,
     mut player_map: ResMut<PlayerDistanceMap>,
     mut turn_events: EventWriter<PlayerTookTurnEvent>,
     mut moved_events: EventWriter<EntityMovedEvent>,
+    mut attack_events: EventWriter<WantsToMelee>,
 ) {
-    for (_, mut wp, entity) in q.iter_mut() {
+    let mut cs_positions: HashMap<WorldPos, Entity> = HashMap::new();
+    for (wp, entity) in qs.q1().iter() {
+        cs_positions.insert(*wp, entity);
+    }
+    for (mut wp, entity) in qs.q0().iter_mut() {
         let mut new_wp = *wp;
         if input.left_pressed {
             new_wp.x -= 1;
@@ -69,20 +84,32 @@ pub fn handle_input(
         if input.down_pressed {
             new_wp.y -= 1;
         }
-        if (new_wp != *wp && can_pass(new_wp, &*map, &*blocked)) || input.pass_pressed {
-            turn_events.send(PlayerTookTurnEvent);
-            blocked.update_block(*wp, new_wp);
-            moved_events.send(EntityMovedEvent {
-                entity,
-                old_pos: *wp,
-                new_pos: new_wp,
-            });
-            *wp = new_wp;
 
-            // We don't need to access the Blocked resource here, better to let the monsters pile
-            // up and get stuck if necessary
-            let new_player_map = dijkstra::distance_dijkstra_map(&*map, [new_wp].iter(), |_| false);
-            player_map.0 = new_player_map;
+        if input.pass_pressed {
+            turn_events.send(PlayerTookTurnEvent);
+        } else if new_wp != *wp {
+            if let Some(&defender) = cs_positions.get(&new_wp) {
+                turn_events.send(PlayerTookTurnEvent);
+                attack_events.send(WantsToMelee {
+                    attacker: entity,
+                    defender,
+                });
+            } else if can_pass(new_wp, &*map, &*blocked) {
+                turn_events.send(PlayerTookTurnEvent);
+                blocked.update_block(*wp, new_wp);
+                moved_events.send(EntityMovedEvent {
+                    entity,
+                    old_pos: *wp,
+                    new_pos: new_wp,
+                });
+                *wp = new_wp;
+
+                // We don't need to access the Blocked resource here, better to let the monsters pile
+                // up and get stuck if necessary
+                let new_player_map =
+                    dijkstra::distance_dijkstra_map(&*map, [new_wp].iter(), |_| false);
+                player_map.0 = new_player_map;
+            }
         }
     }
 }
