@@ -3,6 +3,7 @@ Finished 2.5
 Some stuff I want to add that's not covered
 - Unit tests of the radial FOV logic stuff?
 - Better management of the worldpos / transform / layers situation; maybe use bundles?
+  Maybe use change detection https://bevy-cheatbook.github.io/programming/change-detection.html
 
 Then on to 2.6
 

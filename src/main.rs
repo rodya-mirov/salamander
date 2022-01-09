@@ -31,9 +31,12 @@ impl Plugin for MapPlugin {
 
         app.insert_resource(PlayerInputState::default())
             .insert_resource(Map::default())
+            .insert_resource(BlockedTiles::default())
+            .insert_resource(PlayerDistanceMap::default())
             .add_event::<MapChangedEvent>()
             .add_event::<VisibilityChangedEvent>()
-            .add_event::<PlayerMovedEvent>()
+            .add_event::<PlayerTookTurnEvent>()
+            .add_event::<EntityMovedEvent>()
             // asset loading
             .add_startup_stage(ASSET_LOADING, SystemStage::single_threaded())
             .add_startup_system_to_stage(ASSET_LOADING, setup_systems::load_tileset.system())
@@ -78,7 +81,6 @@ impl Plugin for MapPlugin {
                     .after("compute visibility"),
             )
             // various cleanup actions which make sure certain visual systems are represented
-            // TODO BUG: there is a screen flash every time I move, from the visual tiles getting wiped and not being rebuilt until the next turn
             .add_system_set(
                 SystemSet::new()
                     .label("cleanup")

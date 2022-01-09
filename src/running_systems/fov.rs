@@ -461,18 +461,15 @@ pub fn compute_viewsheds(
     mut query: Query<(&mut Viewshed, &WorldPos)>,
     map: Res<Map>,
 ) {
+    let start = std::time::Instant::now();
     for (mut vs, wp) in query.iter_mut() {
-        if !vs.dirty {
-            continue;
-        }
-
         vs.visible_tiles = refresh_area(*wp, vs.range as f32, &*map);
-
-        vs.dirty = false;
 
         // TODO perf: in theory we only need to send this for the player?
         visibility_events.send(VisibilityChangedEvent);
     }
+    let elapsed = start.elapsed().as_millis();
+    bevy::log::debug!("FOV computations took {} ms", elapsed);
 }
 
 pub fn update_map_visibility(

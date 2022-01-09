@@ -7,6 +7,7 @@ use crate::components::*;
 use crate::map::{Map, TileType, TILE_SIZE};
 use crate::resources::*;
 
+mod dijkstra;
 mod fov;
 
 pub use fov::{compute_viewsheds, update_map_visibility};
@@ -30,6 +31,10 @@ pub fn get_player_input(kb_input: Res<Input<KeyCode>>, mut input_state: ResMut<P
         input_state.down_pressed = true;
     }
 
+    if kb_input.just_pressed(KeyCode::Space) {
+        input_state.pass_pressed = true;
+    }
+
     if input_state.up_pressed && input_state.down_pressed {
         input_state.up_pressed = false;
         input_state.down_pressed = false;
@@ -43,11 +48,14 @@ pub fn get_player_input(kb_input: Res<Input<KeyCode>>, mut input_state: ResMut<P
 
 pub fn handle_input(
     input: Res<PlayerInputState>,
-    mut q: Query<(&Player, &mut WorldPos, Option<&mut Viewshed>)>,
-    mut moved_events: EventWriter<PlayerMovedEvent>,
+    mut q: Query<(&Player, &mut WorldPos, Entity)>,
     map: Res<Map>,
+    mut blocked: ResMut<BlockedTiles>,
+    mut player_map: ResMut<PlayerDistanceMap>,
+    mut turn_events: EventWriter<PlayerTookTurnEvent>,
+    mut moved_events: EventWriter<EntityMovedEvent>,
 ) {
-    for (_, mut wp, vs) in q.iter_mut() {
+    for (_, mut wp, entity) in q.iter_mut() {
         let mut new_wp = *wp;
         if input.left_pressed {
             new_wp.x -= 1;
@@ -61,15 +69,23 @@ pub fn handle_input(
         if input.down_pressed {
             new_wp.y -= 1;
         }
-        if *wp != new_wp && map.passable(new_wp) {
-            *wp = new_wp;
-            moved_events.send(PlayerMovedEvent);
+        if (new_wp != *wp && can_pass(new_wp, &*map, &*blocked)) || input.pass_pressed {
 
-            if let Some(mut vs) = vs {
-                vs.dirty = true;
-            }
+            turn_events.send(PlayerTookTurnEvent);
+            blocked.update_block(*wp, new_wp);
+            moved_events.send(EntityMovedEvent { entity, old_pos: *wp, new_pos: new_wp });
+            *wp = new_wp;
+
+            let new_player_map = dijkstra::distance_dijkstra_map(&*map, [new_wp].iter(), |wp| {
+                blocked.is_blocked(wp)
+            });
+            player_map.0 = new_player_map;
         }
     }
+}
+
+fn can_pass(new_wp: WorldPos, map: &Map, blocked: &BlockedTiles) -> bool {
+    map.passable(new_wp) && !blocked.is_blocked(new_wp)
 }
 
 pub fn aim_camera(
@@ -203,26 +219,36 @@ pub fn rebuild_visual_tiles(
 }
 
 pub fn monster_ai(
-    mut player_moved: EventReader<PlayerMovedEvent>,
-    player_query: Query<&WorldPos, With<Player>>,
-    monster_query: Query<(Option<&EntityName>, &Viewshed, &WorldPos), With<MonsterAI>>,
+    mut player_moved: EventReader<PlayerTookTurnEvent>,
+    mut entity_moves: EventWriter<EntityMovedEvent>,
+    mut query_set: QuerySet<(
+        Query<&WorldPos, With<Player>>,
+        Query<
+            (
+                Option<&EntityName>,
+                &mut Viewshed,
+                &mut WorldPos,
+                Entity
+            ),
+            With<MonsterAI>,
+        >,
+    )>,
+    map: Res<Map>,
+    mut blocked: ResMut<BlockedTiles>,
+    player_map: Res<PlayerDistanceMap>,
 ) {
     if player_moved.iter().next().is_none() {
         // don't bother
         return;
     }
 
-    let player_pos: WorldPos = match player_query.iter().next() {
+    let player_pos: WorldPos = match query_set.q0().iter().next() {
         Some(wp) => *wp,
         // no player no action
         None => return,
     };
 
-    for (maybe_name, vs, wp) in monster_query.iter() {
-        if vs.dirty {
-            continue;
-        }
-
+    for (maybe_name, vs, mut wp, entity) in query_set.q1_mut().iter_mut() {
         let name = maybe_name
             .as_ref()
             .map(|n| n.0.as_str())
@@ -233,6 +259,29 @@ pub fn monster_ai(
                 "{} at {} can see the player at {}! zomg",
                 name, *wp, player_pos
             );
+        } else {
+            // player is not visible; do nothing
+            // don't chase them all over the map, only if they can be seen
+            continue;
+        }
+
+        let curr_dist = player_map.0.get(&*wp).copied().unwrap_or(i32::MAX);
+
+        let mut new_wp = *wp;
+        let mut best_dest = curr_dist;
+
+        for adj_tile in map.adjacent(*wp).filter(|w| !blocked.is_blocked(*w)) {
+            let adj_dist = player_map.0.get(&adj_tile).copied().unwrap_or(i32::MAX);
+            if adj_dist < best_dest {
+                best_dest = adj_dist;
+                new_wp = adj_tile;
+            }
+        }
+
+        if new_wp != *wp {
+            blocked.update_block(*wp, new_wp);
+            entity_moves.send(EntityMovedEvent { entity, old_pos: *wp, new_pos: new_wp});
+            *wp = new_wp;
         }
     }
 }

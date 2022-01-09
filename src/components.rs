@@ -1,4 +1,5 @@
 use std::collections::HashSet;
+use bevy::prelude::Entity;
 
 use crate::map::TileType;
 
@@ -29,6 +30,9 @@ pub struct EntityName(pub String);
 /// Marker struct that an entity should be managed by a Monster AI
 pub struct MonsterAI;
 
+/// Indicator that an entity prevents movement. Affects pathing.
+pub struct BlocksMovement;
+
 /// Marker struct that an entity is a visual representation of a tile
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
 pub struct VisualTile(pub TileType);
@@ -42,7 +46,8 @@ pub struct RequiresSeen;
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub struct Viewshed {
     pub visible_tiles: HashSet<WorldPos>,
-    pub dirty: bool,
+    // TODO perf: revive this if FOV computations become a problem
+    // pub dirty: bool,
     pub range: i32,
 }
 
@@ -50,7 +55,6 @@ impl Viewshed {
     pub fn new() -> Self {
         Viewshed {
             visible_tiles: HashSet::new(),
-            dirty: true,
             range: 7,
         }
     }
@@ -60,10 +64,15 @@ impl Viewshed {
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
 pub struct MapChangedEvent;
 
-/// Event indicating something about visibility has changed, to indicate that stuff needs to be rebuilt
+/// Event indicating something about visibility has changed, to indicate that visual stuff needs to be rebuilt
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
 pub struct VisibilityChangedEvent;
 
-/// Event indicating a player has moved
+/// Event indicating a player has finished their turn; used for flow control (indicating the player has finished their turn)
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
-pub struct PlayerMovedEvent;
+pub struct PlayerTookTurnEvent;
+
+/// Event indicating an entity moved
+#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
+pub struct EntityMovedEvent { pub old_pos: WorldPos, pub new_pos: WorldPos, pub entity: Entity}
+

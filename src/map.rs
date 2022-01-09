@@ -1,7 +1,8 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::components::WorldPos;
 use rand::Rng;
+
+use crate::components::WorldPos;
 
 pub const TILE_SIZE: f32 = 32.0;
 
@@ -16,6 +17,13 @@ pub enum TileType {
 
 impl TileType {
     pub fn blocks_visibility(&self) -> bool {
+        match *self {
+            TileType::Wall => true,
+            TileType::Floor => false,
+        }
+    }
+
+    pub fn blocks_movement(&self) -> bool {
         match *self {
             TileType::Wall => true,
             TileType::Floor => false,
@@ -141,11 +149,7 @@ impl Map {
     }
 
     pub fn passable(&self, wp: WorldPos) -> bool {
-        let tile = self.get_tile(wp);
-        match tile {
-            TileType::Wall => false,
-            TileType::Floor => true,
-        }
+        !self.get_tile(wp).blocks_movement()
     }
 
     pub fn set_if_empty(&mut self, wp: WorldPos, tile: TileType) {
@@ -171,6 +175,19 @@ impl Map {
             seen: self.seen.contains(wp),
             visible: self.visible.contains(wp),
         });
+        Box::new(out)
+    }
+
+    /// Returns adjacent tiles which are passable
+    pub fn adjacent(&self, wp: WorldPos) -> Box<dyn Iterator<Item = WorldPos> + '_> {
+        let WorldPos { x, y } = wp;
+        let out = [(x, y - 1), (x - 1, y), (x, y + 1), (x + 1, y)]
+            .into_iter()
+            .map(|(x, y)| WorldPos { x, y })
+            .filter(|wp| {
+                let tt = self.tiles.get(wp).copied().unwrap_or(self.default_tile);
+                !tt.blocks_movement()
+            });
         Box::new(out)
     }
 
