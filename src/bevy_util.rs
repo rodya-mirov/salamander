@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 
 pub fn make_basic_sprite_bundle(
-    index: u32,
+    index: usize,
     sheet_handle: &Handle<TextureAtlas>,
     color: Color,
 ) -> SpriteSheetBundle {

@@ -15,19 +15,19 @@ pub use fov::{compute_viewsheds, update_map_visibility};
 pub fn get_player_input(kb_input: Res<Input<KeyCode>>, mut input_state: ResMut<PlayerInputState>) {
     *input_state = PlayerInputState::default();
 
-    if kb_input.just_pressed(KeyCode::A) || kb_input.just_pressed(KeyCode::Left) {
+    if kb_input.any_just_pressed([KeyCode::A, KeyCode::Left, KeyCode::Numpad4]) {
         input_state.left_pressed = true;
     }
 
-    if kb_input.just_pressed(KeyCode::D) || kb_input.just_pressed(KeyCode::Right) {
+    if kb_input.any_just_pressed([KeyCode::D, KeyCode::Right, KeyCode::Numpad6]) {
         input_state.right_pressed = true;
     }
 
-    if kb_input.just_pressed(KeyCode::W) || kb_input.just_pressed(KeyCode::Up) {
+    if kb_input.any_just_pressed([KeyCode::W, KeyCode::Up, KeyCode::Numpad8]) {
         input_state.up_pressed = true;
     }
 
-    if kb_input.just_pressed(KeyCode::S) || kb_input.just_pressed(KeyCode::Down) {
+    if kb_input.any_just_pressed([KeyCode::S, KeyCode::Down, KeyCode::Numpad2]) {
         input_state.down_pressed = true;
     }
 
@@ -70,15 +70,18 @@ pub fn handle_input(
             new_wp.y -= 1;
         }
         if (new_wp != *wp && can_pass(new_wp, &*map, &*blocked)) || input.pass_pressed {
-
             turn_events.send(PlayerTookTurnEvent);
             blocked.update_block(*wp, new_wp);
-            moved_events.send(EntityMovedEvent { entity, old_pos: *wp, new_pos: new_wp });
+            moved_events.send(EntityMovedEvent {
+                entity,
+                old_pos: *wp,
+                new_pos: new_wp,
+            });
             *wp = new_wp;
 
-            let new_player_map = dijkstra::distance_dijkstra_map(&*map, [new_wp].iter(), |wp| {
-                blocked.is_blocked(wp)
-            });
+            // We don't need to access the Blocked resource here, better to let the monsters pile
+            // up and get stuck if necessary
+            let new_player_map = dijkstra::distance_dijkstra_map(&*map, [new_wp].iter(), |_| false);
             player_map.0 = new_player_map;
         }
     }
@@ -123,7 +126,7 @@ pub fn aim_camera(
     }
 
     // we need the player's position to center the camera
-    let player_wp: WorldPos = match player_query.single() {
+    let player_wp: WorldPos = match player_query.get_single() {
         Ok(player) => *player.1,
         // if no player, just end the system
         Err(_) => {
@@ -158,7 +161,7 @@ pub fn world_pos_to_visual_system(mut wp_query: Query<(&WorldPos, &mut Transform
 /// Make the visible (bevy rendering) component reflect the actual viewing state, if relevant
 pub fn hide_unseen_things(
     player_query: Query<&Viewshed, (With<Player>,)>,
-    mut to_hide_query: Query<(&WorldPos, &mut Visible), (With<RequiresSeen>,)>,
+    mut to_hide_query: Query<(&WorldPos, &mut Visibility), (With<RequiresSeen>,)>,
 ) {
     let player_vs = match player_query.iter().next() {
         Some(vs) => vs.visible_tiles.clone(),
@@ -222,16 +225,8 @@ pub fn monster_ai(
     mut player_moved: EventReader<PlayerTookTurnEvent>,
     mut entity_moves: EventWriter<EntityMovedEvent>,
     mut query_set: QuerySet<(
-        Query<&WorldPos, With<Player>>,
-        Query<
-            (
-                Option<&EntityName>,
-                &mut Viewshed,
-                &mut WorldPos,
-                Entity
-            ),
-            With<MonsterAI>,
-        >,
+        QueryState<&WorldPos, With<Player>>,
+        QueryState<(Option<&EntityName>, &mut Viewshed, &mut WorldPos, Entity), With<MonsterAI>>,
     )>,
     map: Res<Map>,
     mut blocked: ResMut<BlockedTiles>,
@@ -248,7 +243,7 @@ pub fn monster_ai(
         None => return,
     };
 
-    for (maybe_name, vs, mut wp, entity) in query_set.q1_mut().iter_mut() {
+    for (maybe_name, vs, mut wp, entity) in query_set.q1().iter_mut() {
         let name = maybe_name
             .as_ref()
             .map(|n| n.0.as_str())
@@ -280,7 +275,11 @@ pub fn monster_ai(
 
         if new_wp != *wp {
             blocked.update_block(*wp, new_wp);
-            entity_moves.send(EntityMovedEvent { entity, old_pos: *wp, new_pos: new_wp});
+            entity_moves.send(EntityMovedEvent {
+                entity,
+                old_pos: *wp,
+                new_pos: new_wp,
+            });
             *wp = new_wp;
         }
     }

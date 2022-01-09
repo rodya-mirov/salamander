@@ -2,6 +2,8 @@ Finished 2.5
 
 Some stuff I want to add that's not covered
 - Unit tests of the radial FOV logic stuff?
+- The aggro behavior is not ideal, it's really easy to lose an enemy by going around a corner
+- Why doesn't my numpad work
 - Better management of the worldpos / transform / layers situation; maybe use bundles?
   Maybe use change detection https://bevy-cheatbook.github.io/programming/change-detection.html
 

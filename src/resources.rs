@@ -13,7 +13,7 @@ pub struct PlayerInputState {
     pub pass_pressed: bool,
 }
 
-pub struct BasicTilesSheet(pub Handle<Texture>);
+// pub struct BasicTilesSheet(pub Handle<Texture>);
 
 pub struct BasicTilesAtlas(pub Handle<TextureAtlas>);
 

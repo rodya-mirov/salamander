@@ -21,6 +21,12 @@ pub fn make_map(
     commands
         .spawn()
         .insert(Player)
+        .insert(CombatStats {
+            max_hp: 30,
+            hp: 30,
+            defense: 2,
+            power: 5,
+        })
         .insert(EntityName("Player".to_string()))
         .insert_bundle(make_basic_sprite_bundle(2, &sheet.0, Color::ALICE_BLUE))
         .insert(Viewshed::new())
@@ -49,6 +55,21 @@ pub fn make_map(
         }
     };
 
+    let make_stats = |kind| match kind {
+        MonsterKind::KnifeOrc => CombatStats {
+            max_hp: 12,
+            hp: 12,
+            defense: 1,
+            power: 4,
+        },
+        MonsterKind::StrongOrc => CombatStats {
+            max_hp: 16,
+            hp: 16,
+            defense: 2,
+            power: 2,
+        },
+    };
+
     for room in rooms.iter().skip(1) {
         let (x, y) = room.center();
 
@@ -67,6 +88,7 @@ pub fn make_map(
             .insert(BlocksMovement)
             .insert_bundle(make_sprite(kind))
             .insert(make_name(kind))
+            .insert(make_stats(kind))
             .insert(Transform::from_xyz(0.0, 0.0, 40.0));
 
         blocks.add_block(WorldPos { x, y });
@@ -88,8 +110,7 @@ pub fn load_tileset(
     asset_server: Res<AssetServer>,
     mut texture_atlases: ResMut<Assets<TextureAtlas>>,
 ) {
-    let sheet_handle: Handle<Texture> = asset_server.load("tiles/basic_tiles.png");
-    commands.insert_resource(BasicTilesSheet(sheet_handle.clone()));
+    let sheet_handle: Handle<_> = asset_server.load("tiles/basic_tiles.png");
     let texture_atlas = TextureAtlas::from_grid(sheet_handle, Vec2::new(32.0, 32.0), 16, 20);
     let texture_atlas_handle = texture_atlases.add(texture_atlas);
     commands.insert_resource(BasicTilesAtlas(texture_atlas_handle));
