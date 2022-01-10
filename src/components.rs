@@ -34,6 +34,11 @@ impl std::fmt::Display for WorldPos {
     }
 }
 
+/// Tag for a thing that gets a turn every frame that just ... indicates we've gone around the
+/// whole circle. Used for age and stuff.
+#[derive(Component)]
+pub struct EndOfTurnTrigger;
+
 /// Anything that needs a name, I guess
 #[derive(Component)]
 pub struct EntityName(pub String);

@@ -90,6 +90,7 @@ impl Plugin for MapPlugin {
 
         app.insert_resource(PlayerInputState::default())
             .insert_resource(Map::default())
+            .insert_resource(CurrentTurnNumber::default())
             .insert_resource(PlayerMovedInFrame::default())
             .insert_resource(PlayerNoAction::default())
             .insert_resource(BlockedTiles::default())
@@ -110,6 +111,7 @@ impl Plugin for MapPlugin {
             .add_startup_stage_after(ASSET_LOADING, WORLD_SETUP, SystemStage::single_threaded())
             .add_startup_system_to_stage(WORLD_SETUP, setup_systems::make_map)
             .add_startup_system_to_stage(WORLD_SETUP, camera_setup)
+            .add_startup_system_to_stage(WORLD_SETUP, setup_systems::setup_turn_counter)
             .add_startup_system(setup_systems::setup_stock_text)
             // input systems
             // TODO: remove this once we have real UI around this

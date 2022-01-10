@@ -98,6 +98,13 @@ pub fn make_map(
     map_events.send(MapChangedEvent);
 }
 
+pub fn setup_turn_counter(mut commands: Commands) {
+    commands
+        .spawn()
+        .insert(EndOfTurnTrigger)
+        .insert(WantsTurnOrderAssignment);
+}
+
 #[derive(Copy, Clone, Eq, PartialEq, Debug, Hash)]
 enum MonsterKind {
     StrongOrc,

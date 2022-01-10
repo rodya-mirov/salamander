@@ -37,6 +37,7 @@ pub fn world_tick(world: &mut World) {
         // then let thinking agents take their turns
         .add_sequential_system(&mut system_idx, handle_input)
         .add_sequential_system(&mut system_idx, monster_ai)
+        .add_sequential_system(&mut system_idx, handle_end_of_turn)
         // then, cleanup systems
         .add_sequential_system(&mut system_idx, process_combat_event)
         .add_sequential_system(&mut system_idx, process_suffers_damage_event)
@@ -52,7 +53,7 @@ pub fn world_tick(world: &mut World) {
         .add_sequential_system(&mut system_idx, drain_turn_events);
 
     let start = std::time::Instant::now();
-    let budget_ms = 6000; // 12 ms for this system keeps us at a healthy 60 fps with 4ms left for rendering :grimace:
+    let budget_ms = 12; // 12 ms for this system keeps us at a healthy 60 fps with 4ms left for rendering :grimace:
 
     while start.elapsed().as_millis() < budget_ms {
         full_stage.run(world);
@@ -613,5 +614,24 @@ pub fn update_fps_text(
                 text.sections[1].value = format!("{:.2}", average);
             }
         }
+    }
+}
+
+pub fn handle_end_of_turn(
+    turn: Res<TurnOrder>,
+    q: Query<(), With<EndOfTurnTrigger>>,
+    mut counter: ResMut<CurrentTurnNumber>,
+    mut end_of_turn: EventWriter<EntityFinishedTurn>,
+) {
+    let next_entity = match turn.current_holder() {
+        Some(e) => e,
+        None => return,
+    };
+
+    if let Ok(_) = q.get(next_entity) {
+        counter.0 += 1;
+        end_of_turn.send(EntityFinishedTurn {
+            entity: next_entity,
+        });
     }
 }

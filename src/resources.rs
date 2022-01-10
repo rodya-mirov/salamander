@@ -6,6 +6,10 @@ use bevy::prelude::*;
 
 use crate::components::*;
 
+/// Just tracks the current turn number of the game. Used to age logs and stuff.
+#[derive(Default, Copy, Clone, Eq, PartialEq, Hash, Debug)]
+pub struct CurrentTurnNumber(pub usize);
+
 /// Indicates the player system has already run once this frame, which is used for various things
 #[derive(Default, Copy, Clone, Eq, PartialEq, Hash, Debug)]
 pub struct PlayerMovedInFrame(pub bool);
