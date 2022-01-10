@@ -11,7 +11,6 @@ pub fn make_map(
     mut map_events: EventWriter<MapChangedEvent>,
     mut commands: Commands,
     sheet: Res<BasicTilesAtlas>,
-    mut blocks: ResMut<BlockedTiles>,
 ) {
     let (map, rooms) = make_new_map();
 
@@ -31,12 +30,12 @@ pub fn make_map(
         .insert_bundle(make_basic_sprite_bundle(2, &sheet.0, Color::ALICE_BLUE))
         .insert(Viewshed::new())
         .insert(RequiresSeen)
+        .insert(WantsTurnOrderAssignment)
+        .insert(WantsMapIndexing)
         .insert(BlocksMovement)
         .insert(WorldPos { x, y })
         // TODO: coherent layering management system, not like this
         .insert(Transform::from_xyz(0.0, 0.0, 100.0));
-
-    blocks.add_block(WorldPos { x, y });
 
     let mut rng = rand::thread_rng();
 
@@ -86,12 +85,12 @@ pub fn make_map(
             .insert(RequiresSeen)
             .insert(MonsterAI)
             .insert(BlocksMovement)
+            .insert(WantsTurnOrderAssignment)
+            .insert(WantsMapIndexing)
             .insert_bundle(make_sprite(kind))
             .insert(make_name(kind))
             .insert(make_stats(kind))
             .insert(Transform::from_xyz(0.0, 0.0, 40.0));
-
-        blocks.add_block(WorldPos { x, y });
     }
 
     *map_res = map;

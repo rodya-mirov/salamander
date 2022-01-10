@@ -1,4 +1,4 @@
-Finished 2.5
+Finished 2.6
 
 Some stuff I want to add that's not covered
 - Unit tests of the radial FOV logic stuff?
@@ -6,11 +6,9 @@ Some stuff I want to add that's not covered
 - Why doesn't my numpad work
 - Better management of the worldpos / transform / layers situation; maybe use bundles?
   Maybe use change detection https://bevy-cheatbook.github.io/programming/change-detection.html
-- Investigate if making the game fully turn based would grind the game to a halt; figure out if
-    there's a way to say "run the update section quite a lot in each frame"
-     see https://github.com/bevyengine/bevy/issues/3600
+- There is a LOT of "make sure to clean up these 65 things" that need macros
 
-Then on to 2.6
+Then on to 2.7
 
 Start thinking about dialogue boxes (with choices and callbacks) since that's one big thing I think I never figured out
 in previous attempts (the choices could do ALMOST ANYTHING in the world)

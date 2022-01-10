@@ -1,8 +1,7 @@
 use bevy::ecs::schedule::IntoSystemDescriptor;
 use bevy::{
-
     diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin},
-    prelude::*
+    prelude::*,
 };
 
 mod bevy_util;
@@ -42,13 +41,38 @@ impl AppExtension for App {
         let mut ss = SystemSet::new();
 
         if *idx > 0 {
-            let after: &'static str = Box::leak(format!("CustomStage{}", *idx).into_boxed_str());
+            let after: &'static str =
+                Box::leak(format!("CustomSystemSet{}", *idx).into_boxed_str());
             ss = ss.after(after);
         }
 
         *idx += 1;
 
-        let label: &'static str = Box::leak(format!("CustomStage{}", *idx).into_boxed_str());
+        let label: &'static str = Box::leak(format!("CustomSystemSet{}", *idx).into_boxed_str());
+
+        ss = ss.label(label).with_system(system);
+
+        self.add_system_set(ss)
+    }
+}
+
+impl AppExtension for SystemStage {
+    fn add_sequential_system<Params>(
+        &mut self,
+        idx: &mut usize,
+        system: impl IntoSystemDescriptor<Params>,
+    ) -> &mut Self {
+        let mut ss = SystemSet::new();
+
+        if *idx > 0 {
+            let after: &'static str =
+                Box::leak(format!("CustomSystemSet{}", *idx).into_boxed_str());
+            ss = ss.after(after);
+        }
+
+        *idx += 1;
+
+        let label: &'static str = Box::leak(format!("CustomSystemSet{}", *idx).into_boxed_str());
 
         ss = ss.label(label).with_system(system);
 
@@ -65,17 +89,19 @@ impl Plugin for MapPlugin {
         use map::*;
         use resources::*;
 
-        let mut ss_index: usize = 0;
-
         app.insert_resource(PlayerInputState::default())
             .insert_resource(Map::default())
             .insert_resource(BlockedTiles::default())
+            .insert_resource(CombatStatsTiles::default())
             .insert_resource(PlayerDistanceMap::default())
+            .insert_resource(TurnOrder::default())
             .add_event::<MapChangedEvent>()
             .add_event::<VisibilityChangedEvent>()
-            .add_event::<PlayerTookTurnEvent>()
             .add_event::<EntityMovedEvent>()
-            .add_event::<WantsToMelee>()
+            .add_event::<EntityMeleeAttacks>()
+            .add_event::<EntityFinishedTurn>()
+            .add_event::<EntitySuffersDamage>()
+            .add_event::<EntityDies>()
             // asset loading
             .add_startup_stage(ASSET_LOADING, SystemStage::single_threaded())
             .add_startup_system_to_stage(ASSET_LOADING, setup_systems::load_tileset.system())
@@ -87,13 +113,7 @@ impl Plugin for MapPlugin {
             // TODO: remove this once we have real UI around this
             .add_system(bevy::input::system::exit_on_esc_system.system())
             // i guess this is sloppy use of bevy but damn it i want my callbacks to be processed in one frame
-            .add_sequential_system(&mut ss_index, running_systems::get_player_input)
-            .add_sequential_system(&mut ss_index, running_systems::handle_input)
-            .add_sequential_system(&mut ss_index, running_systems::monster_ai)
-            .add_sequential_system(&mut ss_index, running_systems::compute_viewsheds)
-            .add_sequential_system(&mut ss_index, running_systems::update_map_visibility)
-            .add_sequential_system(&mut ss_index, running_systems::rebuild_visual_tiles)
-            // graphical systems; note they're in a separate stage so that commands will be issued correctly
+            .add_system(running_systems::world_tick.exclusive_system())
             .add_stage_after(
                 CoreStage::Update,
                 "rebuild graphics",

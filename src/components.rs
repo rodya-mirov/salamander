@@ -19,6 +19,12 @@ pub struct WorldPos {
     pub y: i32,
 }
 
+impl WorldPos {
+    pub fn dist(&self, other: WorldPos) -> i32 {
+        (self.x - other.x).abs() + (self.y - other.y).abs()
+    }
+}
+
 impl std::fmt::Display for WorldPos {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "({}, {})", self.x, self.y)
@@ -72,9 +78,43 @@ pub struct MapChangedEvent;
 #[derive(Component, Copy, Clone, Eq, PartialEq, Hash, Debug)]
 pub struct VisibilityChangedEvent;
 
-/// Event indicating a player has finished their turn; used for flow control (indicating the player has finished their turn)
-#[derive(Component, Copy, Clone, Eq, PartialEq, Hash, Debug)]
-pub struct PlayerTookTurnEvent;
+#[derive(Component, Copy, Clone, Eq, PartialEq, Debug)]
+pub struct CombatStats {
+    pub max_hp: i32,
+    pub hp: i32,
+    pub defense: i32,
+    pub power: i32,
+}
+
+/// Marker struct that an entity wants to be part of the turn order.
+/// Change detection will find these things and give them spots.
+#[derive(Component, Copy, Clone, Eq, PartialEq, Debug)]
+pub struct WantsTurnOrderAssignment;
+
+/// Marker struct that an entity wants to be part of the turn order.
+/// Change detection will find these things and give them spots.
+#[derive(Component, Copy, Clone, Eq, PartialEq, Debug)]
+pub struct WantsMapIndexing;
+
+/// Event indicating an entity has finished their turn
+#[derive(Component, Copy, Clone, Eq, PartialEq, Debug)]
+pub struct EntityFinishedTurn {
+    pub entity: Entity,
+}
+
+/// Entity is initiating an attack on another entity
+#[derive(Component, Copy, Clone, Eq, PartialEq, Debug)]
+pub struct EntityMeleeAttacks {
+    pub attacker: Entity,
+    pub defender: Entity,
+}
+
+/// Entity is suffering some kind of damage
+#[derive(Component, Copy, Clone, Eq, PartialEq, Debug)]
+pub struct EntitySuffersDamage {
+    pub entity: Entity,
+    pub damage: i32,
+}
 
 /// Event indicating an entity moved
 #[derive(Component, Copy, Clone, Eq, PartialEq, Hash, Debug)]
@@ -84,16 +124,8 @@ pub struct EntityMovedEvent {
     pub entity: Entity,
 }
 
+/// Event indicating entity is dead
 #[derive(Component, Copy, Clone, Eq, PartialEq, Debug)]
-pub struct CombatStats {
-    pub max_hp: i32,
-    pub hp: i32,
-    pub defense: i32,
-    pub power: i32,
-}
-
-#[derive(Component, Copy, Clone, Eq, PartialEq, Debug)]
-pub struct WantsToMelee {
-    pub attacker: Entity,
-    pub defender: Entity,
+pub struct EntityDies {
+    pub entity: Entity,
 }

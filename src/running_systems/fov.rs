@@ -457,16 +457,32 @@ fn refresh_area(hero: WorldPos, range: f32, map: &Map) -> HashSet<WorldPos> {
 }
 
 pub fn compute_viewsheds(
+    mut movement_events: EventReader<EntityMovedEvent>,
     mut visibility_events: EventWriter<VisibilityChangedEvent>,
     mut query: Query<(&mut Viewshed, &WorldPos)>,
     map: Res<Map>,
 ) {
     let start = std::time::Instant::now();
-    for (mut vs, wp) in query.iter_mut() {
-        vs.visible_tiles = refresh_area(*wp, vs.range as f32, &*map);
+    for moved_entity in movement_events.iter().map(|e| e.entity) {
+        match query.get_mut(moved_entity) {
+            Ok((mut vs, wp)) => {
+                vs.visible_tiles = refresh_area(*wp, vs.range as f32, &*map);
 
-        // TODO perf: in theory we only need to send this for the player?
-        visibility_events.send(VisibilityChangedEvent);
+                // TODO perf: in theory we only need to send this for the player?
+                visibility_events.send(VisibilityChangedEvent);
+            }
+            // things without viewsheds can be ignored
+            Err(_) => {}
+        }
+    }
+    // this lets the initial viewsheds be populated
+    for (mut vs, wp) in query.iter_mut() {
+        if vs.visible_tiles.is_empty() {
+            vs.visible_tiles = refresh_area(*wp, vs.range as f32, &*map);
+
+            // TODO perf: in theory we only need to send this for the player?
+            visibility_events.send(VisibilityChangedEvent);
+        }
     }
     let elapsed = start.elapsed().as_millis();
     bevy::log::debug!("FOV computations took {} ms", elapsed);
@@ -475,7 +491,7 @@ pub fn compute_viewsheds(
 pub fn update_map_visibility(
     mut visibility_events: EventReader<VisibilityChangedEvent>,
     mut map_changed_events: EventWriter<MapChangedEvent>,
-    query: Query<(&Viewshed, &Player)>,
+    query: Query<&Viewshed, With<Player>>,
     mut map: ResMut<Map>,
 ) {
     // Don't care about the details of the event, just that it occurred; we aren't doing "smart" updates
@@ -483,7 +499,7 @@ pub fn update_map_visibility(
         return;
     }
 
-    for (vs, _) in query.iter() {
+    for vs in query.iter() {
         map.set_visible_exact(&vs.visible_tiles);
 
         // the map "changed" so we need to recompute the visual tiles and stuff
