@@ -7,6 +7,7 @@ Some stuff I want to add that's not covered
 - Better management of the worldpos / transform / layers situation; maybe use bundles?
   Maybe use change detection https://bevy-cheatbook.github.io/programming/change-detection.html
 - There is a LOT of "make sure to clean up these 65 things" that need macros
+- Game behaves strangely when the player dies
 
 Then on to 2.7
 

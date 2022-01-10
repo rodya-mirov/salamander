@@ -24,7 +24,7 @@ pub struct PlayerInputState {
     pub pass_pressed: bool,
 }
 
-#[derive(Default, Clone, Debug)]
+#[derive(Default, Debug)]
 pub struct TurnOrder {
     /// Everything gets a turn -- players, mobs, environmental effects, whatever
     /// And everything goes in order

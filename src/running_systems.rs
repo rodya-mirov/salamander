@@ -1,13 +1,14 @@
 use std::collections::HashSet;
 
 use bevy::app::Events;
+use bevy::diagnostic::Diagnostics;
 use bevy::prelude::*;
 
 use crate::bevy_util::make_basic_sprite_bundle;
 use crate::components::*;
 use crate::map::{Map, TileType, TILE_SIZE};
 use crate::resources::*;
-use crate::AppExtension;
+use crate::{AppExtension, FrameTimeDiagnosticsPlugin};
 
 mod dijkstra;
 mod fov;
@@ -25,7 +26,6 @@ pub fn world_tick(world: &mut World) {
     let mut system_idx = 0;
     let mut full_stage = SystemStage::single_threaded();
 
-    // TODO: ensure the player can't go twice in one tick
     // TODO: is there a reason we might want to keep this SystemStage in some kind of cached / stored place in the app? i guess profile?
     full_stage
         // first, make sure turn order and map registration are set up correctly
@@ -122,10 +122,7 @@ pub fn clear_indexing_requests(mut commands: Commands, q: Query<Entity, With<Wan
     }
 }
 
-pub fn get_player_input(
-    mut kb_input: ResMut<Input<KeyCode>>,
-    mut input_state: ResMut<PlayerInputState>,
-) {
+pub fn get_player_input(kb_input: Res<Input<KeyCode>>, mut input_state: ResMut<PlayerInputState>) {
     *input_state = PlayerInputState::default();
 
     if kb_input.any_just_pressed([KeyCode::A, KeyCode::Left, KeyCode::Numpad4]) {
@@ -157,8 +154,6 @@ pub fn get_player_input(
         input_state.left_pressed = false;
         input_state.right_pressed = false;
     }
-
-    kb_input.clear();
 }
 
 pub fn handle_input(
@@ -600,5 +595,23 @@ pub fn process_combat_event(
             entity: defender,
             damage: inflicted,
         });
+    }
+}
+
+pub fn update_fps_text(
+    diagnostics: Res<Diagnostics>,
+    kb_input: Res<Input<KeyCode>>,
+    mut query: Query<(&mut Text, Option<&mut Visibility>), With<FpsTextBox>>,
+) {
+    let toggled: bool = kb_input.just_pressed(KeyCode::F);
+    for (mut text, vis) in query.iter_mut() {
+        if toggled {
+            vis.map(|mut v| v.is_visible = !v.is_visible);
+        }
+        if let Some(fps) = diagnostics.get(FrameTimeDiagnosticsPlugin::FPS) {
+            if let Some(average) = fps.average() {
+                text.sections[1].value = format!("{:.2}", average);
+            }
+        }
     }
 }

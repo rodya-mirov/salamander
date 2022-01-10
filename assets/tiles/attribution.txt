@@ -1,5 +1,0 @@
-basic_tiles.png
-    License:    CC-BY-SA 3.0
-    Author:     Jerom
-    Link:       https://opengameart.org/content/additions-to-32x32-fantasy-tileset
-

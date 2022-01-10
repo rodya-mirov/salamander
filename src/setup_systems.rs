@@ -50,7 +50,7 @@ pub fn make_map(
         idx += 1;
         match kind {
             MonsterKind::KnifeOrc => EntityName(format!("Knife-wielding orc #{}", this_idx)),
-            MonsterKind::StrongOrc => EntityName(format!("Ord #{}", this_idx)),
+            MonsterKind::StrongOrc => EntityName(format!("Orc #{}", this_idx)),
         }
     };
 
@@ -65,7 +65,7 @@ pub fn make_map(
             max_hp: 16,
             hp: 16,
             defense: 2,
-            power: 2,
+            power: 3,
         },
     };
 
@@ -113,4 +113,46 @@ pub fn load_tileset(
     let texture_atlas = TextureAtlas::from_grid(sheet_handle, Vec2::new(32.0, 32.0), 16, 20);
     let texture_atlas_handle = texture_atlases.add(texture_atlas);
     commands.insert_resource(BasicTilesAtlas(texture_atlas_handle));
+}
+
+pub fn setup_stock_text(mut commands: Commands, asset_server: Res<AssetServer>) {
+    commands
+        .spawn_bundle(TextBundle {
+            node: Default::default(),
+            style: Style {
+                align_self: AlignSelf::FlexEnd,
+                position_type: PositionType::Absolute,
+                position: Rect {
+                    top: Val::Px(5.0),
+                    right: Val::Px(5.0),
+                    ..Default::default()
+                },
+                ..Default::default()
+            },
+            text: Text {
+                sections: vec![
+                    TextSection {
+                        value: "FPS: ".to_string(),
+                        style: TextStyle {
+                            font: asset_server.load("fonts/FiraSans-Bold.ttf"),
+                            font_size: 20.0,
+                            color: Color::WHITE,
+                        },
+                    },
+                    TextSection {
+                        value: "".to_string(),
+                        style: TextStyle {
+                            font: asset_server.load("fonts/FiraMono-Medium.ttf"),
+                            font_size: 20.0,
+                            color: Color::GOLD,
+                        },
+                    },
+                ],
+                alignment: Default::default(),
+            },
+            ..Default::default()
+        })
+        // false by default, can toggle with a system
+        .insert(Visibility { is_visible: false })
+        .insert(FpsTextBox);
 }

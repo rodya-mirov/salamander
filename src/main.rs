@@ -1,8 +1,5 @@
 use bevy::ecs::schedule::IntoSystemDescriptor;
-use bevy::{
-    diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin},
-    prelude::*,
-};
+use bevy::{diagnostic::FrameTimeDiagnosticsPlugin, prelude::*};
 
 mod bevy_util;
 
@@ -22,6 +19,8 @@ fn camera_setup(mut commands: Commands) {
     commands
         .spawn_bundle(OrthographicCameraBundle::new_2d())
         .insert(PlayerCamera);
+
+    commands.spawn_bundle(UiCameraBundle::default());
 }
 
 trait AppExtension {
@@ -106,14 +105,16 @@ impl Plugin for MapPlugin {
             .add_event::<EntityDies>()
             // asset loading
             .add_startup_stage(ASSET_LOADING, SystemStage::single_threaded())
-            .add_startup_system_to_stage(ASSET_LOADING, setup_systems::load_tileset.system())
+            .add_startup_system_to_stage(ASSET_LOADING, setup_systems::load_tileset)
             // setup systems
             .add_startup_stage_after(ASSET_LOADING, WORLD_SETUP, SystemStage::single_threaded())
-            .add_startup_system_to_stage(WORLD_SETUP, setup_systems::make_map.system())
-            .add_startup_system_to_stage(WORLD_SETUP, camera_setup.system())
+            .add_startup_system_to_stage(WORLD_SETUP, setup_systems::make_map)
+            .add_startup_system_to_stage(WORLD_SETUP, camera_setup)
+            .add_startup_system(setup_systems::setup_stock_text)
             // input systems
             // TODO: remove this once we have real UI around this
-            .add_system(bevy::input::system::exit_on_esc_system.system())
+            .add_system(bevy::input::system::exit_on_esc_system)
+            .add_system(running_systems::update_fps_text)
             // i guess this is sloppy use of bevy but damn it i want my callbacks to be processed in one frame
             .add_system(running_systems::world_tick.exclusive_system())
             .add_stage_after(
@@ -145,6 +146,5 @@ pub fn main() {
         .add_plugins(DefaultPlugins)
         .add_plugin(MapPlugin)
         .add_plugin(FrameTimeDiagnosticsPlugin::default())
-        .add_plugin(LogDiagnosticsPlugin::default())
         .run();
 }

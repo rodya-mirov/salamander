@@ -8,6 +8,9 @@ use crate::map::TileType;
 #[derive(Component, Copy, Clone, Eq, PartialEq, Hash)]
 pub struct PlayerCamera;
 
+#[derive(Component)]
+pub struct FpsTextBox;
+
 /// Marker struct that this entity is the player
 #[derive(Component, Copy, Clone, Eq, PartialEq, Hash, Debug)]
 pub struct Player;
