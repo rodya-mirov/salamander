@@ -15,6 +15,10 @@ old things, and so on. I'm particularly happy with these so far:
     definitely restricts how you imagine the game world is -- you can't make it ambiguous about what the setting _is_
     when the images are quite specific -- but it sure looks prettier this way.
 
+* I was able to set up a fully turn-based system this time, where everybody goes in order (the monsters have "AI"
+   but still go "one at a time") which is somewhat-idiomatic in the framework and is still performant enough to feel
+   crisp and smooth. It feels really elegant.
+
 I haven't decided how far I'm going to go with this project. I don't know that I care to make a "real game" but there
 are a few things I'd like to get figured out this time that I didn't manage last time:
 

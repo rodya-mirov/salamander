@@ -91,6 +91,8 @@ impl Plugin for MapPlugin {
 
         app.insert_resource(PlayerInputState::default())
             .insert_resource(Map::default())
+            .insert_resource(PlayerMovedInFrame::default())
+            .insert_resource(PlayerNoAction::default())
             .insert_resource(BlockedTiles::default())
             .insert_resource(CombatStatsTiles::default())
             .insert_resource(PlayerDistanceMap::default())

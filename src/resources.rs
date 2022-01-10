@@ -6,6 +6,15 @@ use bevy::prelude::*;
 
 use crate::components::*;
 
+/// Indicates the player system has already run once this frame, which is used for various things
+#[derive(Default, Copy, Clone, Eq, PartialEq, Hash, Debug)]
+pub struct PlayerMovedInFrame(pub bool);
+
+/// Indicates the player system has generated a "no action" choice, or has been early stopped,
+/// which is used for various things
+#[derive(Default, Copy, Clone, Eq, PartialEq, Hash, Debug)]
+pub struct PlayerNoAction(pub bool);
+
 #[derive(Default, Copy, Clone, Eq, PartialEq, Hash, Debug)]
 pub struct PlayerInputState {
     pub up_pressed: bool,
@@ -41,8 +50,6 @@ impl TurnOrder {
         }
     }
 
-    // Will be used when things can die
-    #[allow(dead_code)]
     pub fn remove_from_turn_order(&mut self, entity: Entity) {
         let mut i = 0;
         while i < self.turn_order.len() {
@@ -55,6 +62,11 @@ impl TurnOrder {
         if i < self.turn_order.len() {
             self.turn_order.remove(i);
         }
+    }
+
+    #[allow(dead_code)] // used for debug stuff
+    pub fn len(&self) -> usize {
+        self.turn_order.len()
     }
 }
 

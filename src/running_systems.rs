@@ -18,6 +18,7 @@ pub fn world_tick(world: &mut World) {
     // This is done once at the top of the tick, not inside the loop
     let mut input_state = SystemStage::single_threaded();
     input_state.add_system(get_player_input);
+    input_state.add_system(clear_player_moved_in_frame);
     input_state.run(world);
 
     // Single threaded isn't enough to guarantee execution order, so it's still super janky
@@ -25,10 +26,7 @@ pub fn world_tick(world: &mut World) {
     let mut full_stage = SystemStage::single_threaded();
 
     // TODO: ensure the player can't go twice in one tick
-    // TODO: ensure thinking agents check its their turn, first
     // TODO: is there a reason we might want to keep this SystemStage in some kind of cached / stored place in the app? i guess profile?
-    // TODO: turn end event system
-    // TODO: make monsters take turns
     full_stage
         // first, make sure turn order and map registration are set up correctly
         .add_sequential_system(&mut system_idx, assign_turn_order)
@@ -53,11 +51,30 @@ pub fn world_tick(world: &mut World) {
         .add_sequential_system(&mut system_idx, next_turn)
         .add_sequential_system(&mut system_idx, drain_turn_events);
 
-    // TODO: improve the loop so it runs until either (a) we're waiting for player, or (b) we ran out of time
-    for _ in 0..3 {
+    let start = std::time::Instant::now();
+    let budget_ms = 6000; // 12 ms for this system keeps us at a healthy 60 fps with 4ms left for rendering :grimace:
+
+    while start.elapsed().as_millis() < budget_ms {
         full_stage.run(world);
+
+        // In the extremely common case where the player comes up twice, or they took no action,
+        // we know nothing else is going to happen and we can stop immediately
+        if world
+            .get_resource::<PlayerNoAction>()
+            .map(|p| p.0)
+            .unwrap_or(false)
+        {
+            break;
+        }
     }
-    // ...
+}
+
+pub fn clear_player_moved_in_frame(
+    mut moved_in_frame: ResMut<PlayerMovedInFrame>,
+    mut no_action: ResMut<PlayerNoAction>,
+) {
+    moved_in_frame.0 = false;
+    no_action.0 = false;
 }
 
 pub fn assign_turn_order(
@@ -65,7 +82,6 @@ pub fn assign_turn_order(
     mut turns: ResMut<TurnOrder>,
 ) {
     for entity in q.iter() {
-        println!("Adding entity {:?} to turn order", entity);
         turns.add_if_not_present(entity);
     }
 }
@@ -106,7 +122,10 @@ pub fn clear_indexing_requests(mut commands: Commands, q: Query<Entity, With<Wan
     }
 }
 
-pub fn get_player_input(kb_input: Res<Input<KeyCode>>, mut input_state: ResMut<PlayerInputState>) {
+pub fn get_player_input(
+    mut kb_input: ResMut<Input<KeyCode>>,
+    mut input_state: ResMut<PlayerInputState>,
+) {
     *input_state = PlayerInputState::default();
 
     if kb_input.any_just_pressed([KeyCode::A, KeyCode::Left, KeyCode::Numpad4]) {
@@ -138,15 +157,18 @@ pub fn get_player_input(kb_input: Res<Input<KeyCode>>, mut input_state: ResMut<P
         input_state.left_pressed = false;
         input_state.right_pressed = false;
     }
+
+    kb_input.clear();
 }
 
 pub fn handle_input(
+    mut player_lock: ResMut<PlayerMovedInFrame>,
+    mut player_no_action: ResMut<PlayerNoAction>,
     input: Res<PlayerInputState>,
     map: Res<Map>,
     turn_order: Res<TurnOrder>,
     // TODO: do the actual move in a knock-on system, so everything is immutable except event launching
     mut player_query: Query<(&mut WorldPos,), With<Player>>,
-    // todo: move most of this to knock-on systems
     blocked: Res<BlockedTiles>,
     combats: Res<CombatStatsTiles>,
     mut player_map: ResMut<PlayerDistanceMap>,
@@ -164,6 +186,15 @@ pub fn handle_input(
         // not the player's turn, so do nothing
         Err(_) => return,
     };
+
+    if player_lock.0 {
+        player_no_action.0 = true;
+        return;
+    }
+
+    // This doesn't necessarily mean the player did something; it just prevents this system from
+    // running more than once per frame
+    player_lock.0 = true;
 
     let mut new_wp = *wp;
     if input.left_pressed {
@@ -203,6 +234,8 @@ pub fn handle_input(
             let new_player_map = dijkstra::distance_dijkstra_map(&*map, [new_wp].iter(), |_| false);
             player_map.0 = new_player_map;
         }
+    } else {
+        player_no_action.0 = true;
     }
 }
 
@@ -466,11 +499,6 @@ pub fn monster_ai(
                 return;
             }
 
-            println!(
-                "Monster at {} can see the player at {}! zomg",
-                *wp, player_pos
-            );
-
             if wp.dist(player_pos) <= 1 {
                 entity_attacks.send(EntityMeleeAttacks {
                     attacker: entity,
@@ -511,7 +539,6 @@ pub fn process_suffers_damage_event(
     mut death_events: EventWriter<EntityDies>,
 ) {
     for event in damage_events.iter() {
-        println!("There is a suffers damage event");
         let EntitySuffersDamage { entity, damage } = *event;
 
         match cs_query.get_mut(entity) {
@@ -544,7 +571,6 @@ pub fn process_combat_event(
     name_query: Query<&EntityName>,
 ) {
     for event in events.iter() {
-        println!("There is an attack event");
         let EntityMeleeAttacks { attacker, defender } = *event;
         let attacker_cs: CombatStats = match cs_query.get(attacker) {
             Ok(cs) => *cs,
