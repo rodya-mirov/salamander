@@ -10,6 +10,7 @@ bevy = { version = "0.6.0", features = ["dynamic"] }
 rand = "0.8"
 getrandom = { version = "0.2", features = ["js"] }
 ordered-float = "2.8.0"
+typemap = "0.3.3"
 
 # Set the default for dependencies.
 [profile.dev.package."*"]

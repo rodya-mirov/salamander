@@ -3,6 +3,7 @@ use std::collections::HashSet;
 use bevy::prelude::*;
 
 use crate::map::TileType;
+use crate::resources::CallbackEvent;
 
 /// Marker struct indicating this entity is the player camera (so the camera should center on it)
 #[derive(Component, Copy, Clone, Eq, PartialEq, Hash)]
@@ -10,6 +11,9 @@ pub struct PlayerCamera;
 
 #[derive(Component)]
 pub struct FpsTextBox;
+
+#[derive(Component)]
+pub struct LogsTextBox;
 
 /// Marker struct that this entity is the player
 #[derive(Component, Copy, Clone, Eq, PartialEq, Hash, Debug)]
@@ -82,9 +86,13 @@ impl Viewshed {
 #[derive(Component, Copy, Clone, Eq, PartialEq, Hash, Debug)]
 pub struct MapChangedEvent;
 
+impl CallbackEvent for MapChangedEvent {}
+
 /// Event indicating something about visibility has changed, to indicate that visual stuff needs to be rebuilt
 #[derive(Component, Copy, Clone, Eq, PartialEq, Hash, Debug)]
 pub struct VisibilityChangedEvent;
+
+impl CallbackEvent for VisibilityChangedEvent {}
 
 #[derive(Component, Copy, Clone, Eq, PartialEq, Debug)]
 pub struct CombatStats {
@@ -110,6 +118,8 @@ pub struct EntityFinishedTurn {
     pub entity: Entity,
 }
 
+impl CallbackEvent for EntityFinishedTurn {}
+
 /// Entity is initiating an attack on another entity
 #[derive(Component, Copy, Clone, Eq, PartialEq, Debug)]
 pub struct EntityMeleeAttacks {
@@ -117,12 +127,16 @@ pub struct EntityMeleeAttacks {
     pub defender: Entity,
 }
 
+impl CallbackEvent for EntityMeleeAttacks {}
+
 /// Entity is suffering some kind of damage
 #[derive(Component, Copy, Clone, Eq, PartialEq, Debug)]
 pub struct EntitySuffersDamage {
     pub entity: Entity,
     pub damage: i32,
 }
+
+impl CallbackEvent for EntitySuffersDamage {}
 
 /// Event indicating an entity moved
 #[derive(Component, Copy, Clone, Eq, PartialEq, Hash, Debug)]
@@ -132,8 +146,12 @@ pub struct EntityMovedEvent {
     pub entity: Entity,
 }
 
+impl CallbackEvent for EntityMovedEvent {}
+
 /// Event indicating entity is dead
 #[derive(Component, Copy, Clone, Eq, PartialEq, Debug)]
 pub struct EntityDies {
     pub entity: Entity,
 }
+
+impl CallbackEvent for EntityDies {}

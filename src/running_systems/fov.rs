@@ -14,6 +14,7 @@ use ordered_float::NotNan;
 
 use crate::components::*;
 use crate::map::*;
+use crate::resources::CallbackEvents;
 
 const FOV_DEBUGGING: bool = false;
 
@@ -457,19 +458,19 @@ fn refresh_area(hero: WorldPos, range: f32, map: &Map) -> HashSet<WorldPos> {
 }
 
 pub fn compute_viewsheds(
-    mut movement_events: EventReader<EntityMovedEvent>,
-    mut visibility_events: EventWriter<VisibilityChangedEvent>,
+    mut events: ResMut<CallbackEvents>,
     mut query: Query<(&mut Viewshed, &WorldPos)>,
     map: Res<Map>,
 ) {
     let start = std::time::Instant::now();
-    for moved_entity in movement_events.iter().map(|e| e.entity) {
+    let mut visibility_events = Vec::new();
+    for moved_entity in events.iter::<EntityMovedEvent>().map(|e| e.entity) {
         match query.get_mut(moved_entity) {
             Ok((mut vs, wp)) => {
                 vs.visible_tiles = refresh_area(*wp, vs.range as f32, &*map);
 
                 // TODO perf: in theory we only need to send this for the player?
-                visibility_events.send(VisibilityChangedEvent);
+                visibility_events.push(VisibilityChangedEvent);
             }
             // things without viewsheds can be ignored
             Err(_) => {}
@@ -481,21 +482,24 @@ pub fn compute_viewsheds(
             vs.visible_tiles = refresh_area(*wp, vs.range as f32, &*map);
 
             // TODO perf: in theory we only need to send this for the player?
-            visibility_events.send(VisibilityChangedEvent);
+            visibility_events.push(VisibilityChangedEvent);
         }
+    }
+
+    for event in visibility_events {
+        events.send(event);
     }
     let elapsed = start.elapsed().as_millis();
     bevy::log::debug!("FOV computations took {} ms", elapsed);
 }
 
 pub fn update_map_visibility(
-    mut visibility_events: EventReader<VisibilityChangedEvent>,
-    mut map_changed_events: EventWriter<MapChangedEvent>,
+    mut events: ResMut<CallbackEvents>,
     query: Query<&Viewshed, With<Player>>,
     mut map: ResMut<Map>,
 ) {
     // Don't care about the details of the event, just that it occurred; we aren't doing "smart" updates
-    if visibility_events.iter().next().is_none() {
+    if !events.is_nonempty::<VisibilityChangedEvent>() {
         return;
     }
 
@@ -503,6 +507,6 @@ pub fn update_map_visibility(
         map.set_visible_exact(&vs.visible_tiles);
 
         // the map "changed" so we need to recompute the visual tiles and stuff
-        map_changed_events.send(MapChangedEvent);
+        events.send(MapChangedEvent);
     }
 }

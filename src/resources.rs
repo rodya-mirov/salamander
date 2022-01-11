@@ -6,6 +6,8 @@ use bevy::prelude::*;
 
 use crate::components::*;
 
+pub mod events;
+
 /// Just tracks the current turn number of the game. Used to age logs and stuff.
 #[derive(Default, Copy, Clone, Eq, PartialEq, Hash, Debug)]
 pub struct CurrentTurnNumber(pub usize);
@@ -110,6 +112,8 @@ impl CacheMap {
         }
     }
 }
+
+pub use events::{CallbackEvent, CallbackEvents};
 
 #[derive(Default, Clone, Debug)]
 pub struct BlockedTiles(pub CacheMap);

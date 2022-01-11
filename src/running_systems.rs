@@ -1,6 +1,5 @@
 use std::collections::HashSet;
 
-use bevy::app::Events;
 use bevy::diagnostic::Diagnostics;
 use bevy::prelude::*;
 
@@ -168,9 +167,7 @@ pub fn handle_input(
     blocked: Res<BlockedTiles>,
     combats: Res<CombatStatsTiles>,
     mut player_map: ResMut<PlayerDistanceMap>,
-    mut turn_events: EventWriter<EntityFinishedTurn>,
-    mut moved_events: EventWriter<EntityMovedEvent>,
-    mut attack_events: EventWriter<EntityMeleeAttacks>,
+    mut events: ResMut<CallbackEvents>,
 ) {
     let entity = match turn_order.current_holder() {
         Some(entity) => entity,
@@ -207,17 +204,17 @@ pub fn handle_input(
     }
 
     if input.pass_pressed {
-        turn_events.send(EntityFinishedTurn { entity });
+        events.send(EntityFinishedTurn { entity });
     } else if new_wp != *wp {
         if let Some(defender) = combats.get_any(new_wp) {
-            turn_events.send(EntityFinishedTurn { entity });
-            attack_events.send(EntityMeleeAttacks {
+            events.send(EntityFinishedTurn { entity });
+            events.send(EntityMeleeAttacks {
                 attacker: entity,
                 defender,
             });
         } else if can_pass(new_wp, &*map, &*blocked) {
-            turn_events.send(EntityFinishedTurn { entity });
-            moved_events.send(EntityMovedEvent {
+            events.send(EntityFinishedTurn { entity });
+            events.send(EntityMovedEvent {
                 entity,
                 old_pos: *wp,
                 new_pos: new_wp,
@@ -239,9 +236,9 @@ pub fn handle_input(
 fn update_blocked_map(
     q: Query<(), (With<WorldPos>, With<BlocksMovement>)>,
     mut blocked: ResMut<BlockedTiles>,
-    mut events: EventReader<EntityMovedEvent>,
+    events: ResMut<CallbackEvents>,
 ) {
-    for event in events.iter() {
+    for event in events.iter::<EntityMovedEvent>() {
         let EntityMovedEvent {
             entity,
             old_pos,
@@ -256,7 +253,7 @@ fn update_blocked_map(
 fn update_combat_stats_map(
     q: Query<(), (With<WorldPos>, With<CombatStats>)>,
     mut blocked: ResMut<CombatStatsTiles>,
-    mut events: EventReader<EntityMovedEvent>,
+    events: ResMut<CallbackEvents>,
 ) {
     for event in events.iter() {
         let EntityMovedEvent {
@@ -270,36 +267,22 @@ fn update_combat_stats_map(
     }
 }
 
-fn next_turn(
-    mut finished_turn_events: EventReader<EntityFinishedTurn>,
-    mut turns: ResMut<TurnOrder>,
-) {
-    if let Some(_) = finished_turn_events.iter().next() {
+fn next_turn(events: Res<CallbackEvents>, mut turns: ResMut<TurnOrder>) {
+    if events.is_nonempty::<EntityFinishedTurn>() {
         turns.end_turn();
     }
 }
 
-// TODO: make a macro to clear all these events
-fn drain_turn_events(
-    mut finished_turn_events: ResMut<Events<EntityFinishedTurn>>,
-    mut move_events: ResMut<Events<EntityMovedEvent>>,
-    mut combat_events: ResMut<Events<EntityMeleeAttacks>>,
-    mut suffers: ResMut<Events<EntitySuffersDamage>>,
-    mut died: ResMut<Events<EntityDies>>,
-) {
-    finished_turn_events.clear();
-    move_events.clear();
-    combat_events.clear();
-    suffers.clear();
-    died.clear();
+fn drain_turn_events(mut events: ResMut<CallbackEvents>) {
+    events.clear();
 }
 
 fn can_pass(new_wp: WorldPos, map: &Map, blocked: &BlockedTiles) -> bool {
     map.passable(new_wp) && !blocked.0.has_any(new_wp)
 }
 
-pub fn death_system(mut deaths: EventReader<EntityDies>, mut commands: Commands) {
-    for event in deaths.iter() {
+pub fn death_system(events: ResMut<CallbackEvents>, mut commands: Commands) {
+    for event in events.iter::<EntityDies>() {
         let EntityDies { entity } = *event;
         commands.entity(entity).despawn();
     }
@@ -307,12 +290,12 @@ pub fn death_system(mut deaths: EventReader<EntityDies>, mut commands: Commands)
 
 // TODO make this another macro
 pub fn remove_dead_from_maps(
-    mut deaths: EventReader<EntityDies>,
+    events: Res<CallbackEvents>,
     mut turns: ResMut<TurnOrder>,
     mut block_maps: ResMut<BlockedTiles>,
     mut cs_maps: ResMut<CombatStatsTiles>,
 ) {
-    for event in deaths.iter() {
+    for event in events.iter::<EntityDies>() {
         let EntityDies { entity } = *event;
         turns.remove_from_turn_order(entity);
         block_maps.remove_entity_anywhere(entity);
@@ -408,13 +391,13 @@ pub fn hide_unseen_things(
 
 pub fn rebuild_visual_tiles(
     mut commands: Commands,
-    mut rebuild_events: EventReader<MapChangedEvent>,
+    events: Res<CallbackEvents>,
     q: Query<(Entity, &VisualTile)>,
     map: Res<Map>,
     sheet: Res<BasicTilesAtlas>,
 ) {
     // even if we send a zillion, we only rebuild once
-    if rebuild_events.iter().next().is_none() {
+    if events.is_nonempty::<MapChangedEvent>() {
         return;
     }
 
@@ -460,18 +443,17 @@ pub fn monster_ai(
     blocked: Res<BlockedTiles>,
     player_map: Res<PlayerDistanceMap>,
     turns: Res<TurnOrder>,
-    mut entity_turns: EventWriter<EntityFinishedTurn>,
-    mut entity_moves: EventWriter<EntityMovedEvent>,
-    mut entity_attacks: EventWriter<EntityMeleeAttacks>,
+    mut events: ResMut<CallbackEvents>,
 ) {
     let entity = match turns.current_holder() {
         Some(entity) => entity,
         None => return,
     };
 
-    // if monsters can't choose an action the game still moves on
+    // if monsters can't choose an action the game still moves on, so we'll just preemptively end
+    // the turn so we don't forget to do it at the end
     if query_set.q1().get(entity).is_ok() {
-        entity_turns.send(EntityFinishedTurn { entity });
+        events.send(EntityFinishedTurn { entity });
     } else {
         return;
     }
@@ -496,7 +478,7 @@ pub fn monster_ai(
             }
 
             if wp.dist(player_pos) <= 1 {
-                entity_attacks.send(EntityMeleeAttacks {
+                events.send(EntityMeleeAttacks {
                     attacker: entity,
                     defender: player_entity,
                 });
@@ -515,7 +497,7 @@ pub fn monster_ai(
                 }
 
                 if new_wp != *wp {
-                    entity_moves.send(EntityMovedEvent {
+                    events.send(EntityMovedEvent {
                         entity,
                         old_pos: *wp,
                         new_pos: new_wp,
@@ -531,10 +513,10 @@ pub fn monster_ai(
 pub fn process_suffers_damage_event(
     mut cs_query: Query<&mut CombatStats>,
     name_query: Query<&EntityName>,
-    mut damage_events: EventReader<EntitySuffersDamage>,
-    mut death_events: EventWriter<EntityDies>,
+    mut events: ResMut<CallbackEvents>,
 ) {
-    for event in damage_events.iter() {
+    let mut deaths = Vec::new();
+    for event in events.iter::<EntitySuffersDamage>() {
         let EntitySuffersDamage { entity, damage } = *event;
 
         match cs_query.get_mut(entity) {
@@ -547,7 +529,7 @@ pub fn process_suffers_damage_event(
                     .unwrap_or("[unknown]");
                 if cs.hp <= 0 {
                     println!("{} has died from the {} damage", name, damage);
-                    death_events.send(EntityDies { entity });
+                    deaths.push(EntityDies { entity });
                 } else {
                     println!(
                         "{} has suffered {} damage and has {} health remaining",
@@ -558,15 +540,19 @@ pub fn process_suffers_damage_event(
             Err(_) => {}
         }
     }
+    for death in deaths {
+        events.send(death);
+    }
 }
 
 pub fn process_combat_event(
-    mut events: EventReader<EntityMeleeAttacks>,
-    mut damage_events: EventWriter<EntitySuffersDamage>,
+    mut events: ResMut<CallbackEvents>,
     cs_query: Query<&CombatStats>,
     name_query: Query<&EntityName>,
 ) {
-    for event in events.iter() {
+    let mut damage: Vec<EntitySuffersDamage> = Vec::new();
+
+    for event in events.iter::<EntityMeleeAttacks>() {
         let EntityMeleeAttacks { attacker, defender } = *event;
         let attacker_cs: CombatStats = match cs_query.get(attacker) {
             Ok(cs) => *cs,
@@ -592,10 +578,14 @@ pub fn process_combat_event(
             attacker_name, defender_name, inflicted
         );
 
-        damage_events.send(EntitySuffersDamage {
+        damage.push(EntitySuffersDamage {
             entity: defender,
             damage: inflicted,
         });
+    }
+
+    for damage in damage {
+        events.send(damage);
     }
 }
 
@@ -621,7 +611,7 @@ pub fn handle_end_of_turn(
     turn: Res<TurnOrder>,
     q: Query<(), With<EndOfTurnTrigger>>,
     mut counter: ResMut<CurrentTurnNumber>,
-    mut end_of_turn: EventWriter<EntityFinishedTurn>,
+    mut events: ResMut<CallbackEvents>,
 ) {
     let next_entity = match turn.current_holder() {
         Some(e) => e,
@@ -630,7 +620,7 @@ pub fn handle_end_of_turn(
 
     if let Ok(_) = q.get(next_entity) {
         counter.0 += 1;
-        end_of_turn.send(EntityFinishedTurn {
+        events.send(EntityFinishedTurn {
             entity: next_entity,
         });
     }

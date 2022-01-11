@@ -8,7 +8,7 @@ use crate::resources::*;
 
 pub fn make_map(
     mut map_res: ResMut<Map>,
-    mut map_events: EventWriter<MapChangedEvent>,
+    mut events: ResMut<CallbackEvents>,
     mut commands: Commands,
     sheet: Res<BasicTilesAtlas>,
 ) {
@@ -95,7 +95,7 @@ pub fn make_map(
 
     *map_res = map;
 
-    map_events.send(MapChangedEvent);
+    events.send(MapChangedEvent);
 }
 
 pub fn setup_turn_counter(mut commands: Commands) {

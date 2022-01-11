@@ -84,7 +84,6 @@ impl Plugin for MapPlugin {
         const ASSET_LOADING: &str = "load assets";
         const WORLD_SETUP: &str = "setup map";
 
-        use components::*;
         use map::*;
         use resources::*;
 
@@ -97,13 +96,7 @@ impl Plugin for MapPlugin {
             .insert_resource(CombatStatsTiles::default())
             .insert_resource(PlayerDistanceMap::default())
             .insert_resource(TurnOrder::default())
-            .add_event::<MapChangedEvent>()
-            .add_event::<VisibilityChangedEvent>()
-            .add_event::<EntityMovedEvent>()
-            .add_event::<EntityMeleeAttacks>()
-            .add_event::<EntityFinishedTurn>()
-            .add_event::<EntitySuffersDamage>()
-            .add_event::<EntityDies>()
+            .insert_resource(CallbackEvents::default())
             // asset loading
             .add_startup_stage(ASSET_LOADING, SystemStage::single_threaded())
             .add_startup_system_to_stage(ASSET_LOADING, setup_systems::load_tileset)
