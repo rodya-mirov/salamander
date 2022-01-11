@@ -31,6 +31,33 @@ pub struct PlayerInputState {
 }
 
 #[derive(Default, Debug)]
+pub struct Logs {
+    /// logs[0] is the newest
+    logs: VecDeque<LogInfo>,
+}
+
+impl Logs {
+    pub fn push(&mut self, log: LogInfo) {
+        self.logs.push_front(log);
+    }
+
+    pub fn iter(&self, range: impl Iterator<Item = usize>) -> impl Iterator<Item = &LogInfo> {
+        range.map(|i| self.logs.get(i)).flatten()
+    }
+}
+
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub struct LogInfo {
+    pub log: Log,
+    pub issue_round: usize,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub struct Log {
+    pub message: String,
+}
+
+#[derive(Default, Debug)]
 pub struct TurnOrder {
     /// Everything gets a turn -- players, mobs, environmental effects, whatever
     /// And everything goes in order

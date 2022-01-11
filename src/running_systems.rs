@@ -47,6 +47,7 @@ pub fn world_tick(world: &mut World) {
         .add_sequential_system(&mut system_idx, rebuild_visual_tiles)
         .add_sequential_system(&mut system_idx, death_system)
         .add_sequential_system(&mut system_idx, remove_dead_from_maps)
+        .add_sequential_system(&mut system_idx, update_logs)
         // finally, let the next entity take their turn
         .add_sequential_system(&mut system_idx, next_turn)
         .add_sequential_system(&mut system_idx, drain_turn_events);
@@ -157,7 +158,11 @@ pub fn get_player_input(kb_input: Res<Input<KeyCode>>, mut input_state: ResMut<P
 }
 
 pub fn handle_input(
+    // if this is set, we don't allow this system to go again, so a player can't move twice in one
+    // frame (purely a UX improvement, and an important one)
     mut player_lock: ResMut<PlayerMovedInFrame>,
+    // we set this if this system results in "no action" so the world tick function can detect
+    // if we can just stop the game flow immediately
     mut player_no_action: ResMut<PlayerNoAction>,
     input: Res<PlayerInputState>,
     map: Res<Map>,
@@ -166,6 +171,7 @@ pub fn handle_input(
     mut player_query: Query<(&mut WorldPos,), With<Player>>,
     blocked: Res<BlockedTiles>,
     combats: Res<CombatStatsTiles>,
+    // TODO: send this to a back system maybe?
     mut player_map: ResMut<PlayerDistanceMap>,
     mut events: ResMut<CallbackEvents>,
 ) {
@@ -232,7 +238,7 @@ pub fn handle_input(
     }
 }
 
-// TODO: make a macro to do this for everybody
+// TODO: make a macro to do this for every indexed component
 fn update_blocked_map(
     q: Query<(), (With<WorldPos>, With<BlocksMovement>)>,
     mut blocked: ResMut<BlockedTiles>,
@@ -516,6 +522,7 @@ pub fn process_suffers_damage_event(
     mut events: ResMut<CallbackEvents>,
 ) {
     let mut deaths = Vec::new();
+    let mut logs = Vec::new();
     for event in events.iter::<EntitySuffersDamage>() {
         let EntitySuffersDamage { entity, damage } = *event;
 
@@ -528,13 +535,18 @@ pub fn process_suffers_damage_event(
                     .map(|n| n.0.as_str())
                     .unwrap_or("[unknown]");
                 if cs.hp <= 0 {
-                    println!("{} has died from the {} damage", name, damage);
+                    logs.push(LogIssuedEvent {
+                        log: Log {
+                            message: format!("{} has died!", name),
+                        },
+                    });
                     deaths.push(EntityDies { entity });
                 } else {
-                    println!(
-                        "{} has suffered {} damage and has {} health remaining",
-                        name, damage, cs.hp
-                    );
+                    logs.push(LogIssuedEvent {
+                        log: Log {
+                            message: format!("{} has {} health remaining.", name, cs.hp),
+                        },
+                    });
                 }
             }
             Err(_) => {}
@@ -542,6 +554,9 @@ pub fn process_suffers_damage_event(
     }
     for death in deaths {
         events.send(death);
+    }
+    for log in logs {
+        events.send(log);
     }
 }
 
@@ -551,6 +566,7 @@ pub fn process_combat_event(
     name_query: Query<&EntityName>,
 ) {
     let mut damage: Vec<EntitySuffersDamage> = Vec::new();
+    let mut logs: Vec<LogIssuedEvent> = Vec::new();
 
     for event in events.iter::<EntityMeleeAttacks>() {
         let EntityMeleeAttacks { attacker, defender } = *event;
@@ -573,10 +589,14 @@ pub fn process_combat_event(
             .map(|name| name.0.as_str())
             .unwrap_or("[unknown]");
 
-        println!(
-            "{} attacks {} for {} damage",
-            attacker_name, defender_name, inflicted
-        );
+        logs.push(LogIssuedEvent {
+            log: Log {
+                message: format!(
+                    "{} attacks {} for {} damage",
+                    attacker_name, defender_name, inflicted
+                ),
+            },
+        });
 
         damage.push(EntitySuffersDamage {
             entity: defender,
@@ -586,6 +606,9 @@ pub fn process_combat_event(
 
     for damage in damage {
         events.send(damage);
+    }
+    for log in logs {
+        events.send(log);
     }
 }
 
@@ -604,6 +627,45 @@ pub fn update_fps_text(
                 text.sections[1].value = format!("{:.2}", average);
             }
         }
+    }
+}
+
+pub fn update_logs(
+    turn: Res<CurrentTurnNumber>,
+    asset_server: Res<AssetServer>,
+    mut events: ResMut<CallbackEvents>,
+    mut logs: ResMut<Logs>,
+    mut text_component_query: Query<&mut Text, With<LogsTextBox>>,
+) {
+    let mut changed = false;
+
+    for event in events.drain::<LogIssuedEvent>() {
+        logs.push(LogInfo {
+            log: event.log,
+            issue_round: turn.0,
+        });
+        changed = true;
+    }
+
+    // no reason rebuilding the component with no changes
+    if !changed {
+        return;
+    }
+
+    let style = TextStyle {
+        font: asset_server.load("fonts/FiraSans-Bold.ttf"),
+        font_size: 20.0,
+        color: Color::WHITE,
+    };
+
+    for mut text in text_component_query.iter_mut() {
+        text.sections = logs
+            .iter((0..5).rev())
+            .map(|log| TextSection {
+                value: format!("[{}]: {}\n", log.issue_round, log.log.message),
+                style: style.clone(),
+            })
+            .collect();
     }
 }
 

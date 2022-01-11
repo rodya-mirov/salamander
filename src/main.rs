@@ -89,6 +89,7 @@ impl Plugin for MapPlugin {
 
         app.insert_resource(PlayerInputState::default())
             .insert_resource(Map::default())
+            .insert_resource(Logs::default())
             .insert_resource(CurrentTurnNumber::default())
             .insert_resource(PlayerMovedInFrame::default())
             .insert_resource(PlayerNoAction::default())

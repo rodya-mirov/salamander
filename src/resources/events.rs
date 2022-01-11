@@ -37,6 +37,18 @@ impl CallbackEvents {
         Box::new(iter)
     }
 
+    /// Like iter, but we take every event out of the map. Saves on cloning, if you don't care
+    /// about things sticking around.
+    pub fn drain<T: CallbackEvent>(&mut self) -> Box<dyn Iterator<Item = T> + Send + Sync + '_> {
+        match self.map.get_mut::<KeyWrapper<T>>() {
+            Some(v) => Box::new(v.drain(..)),
+            None => {
+                let v = Vec::new();
+                Box::new(v.into_iter())
+            }
+        }
+    }
+
     pub fn is_nonempty<T: CallbackEvent>(&self) -> bool {
         self.map
             .get::<KeyWrapper<T>>()

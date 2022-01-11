@@ -130,6 +130,28 @@ pub fn setup_stock_text(mut commands: Commands, asset_server: Res<AssetServer>) 
                 align_self: AlignSelf::FlexEnd,
                 position_type: PositionType::Absolute,
                 position: Rect {
+                    bottom: Val::Px(25.0),
+                    left: Val::Px(25.0),
+                    ..Default::default()
+                },
+                overflow: Overflow::Hidden,
+                ..Default::default()
+            },
+            text: Text {
+                sections: vec![],
+                alignment: Default::default(),
+            },
+            ..Default::default()
+        })
+        .insert(LogsTextBox);
+
+    commands
+        .spawn_bundle(TextBundle {
+            node: Default::default(),
+            style: Style {
+                align_self: AlignSelf::FlexEnd,
+                position_type: PositionType::Absolute,
+                position: Rect {
                     top: Val::Px(5.0),
                     right: Val::Px(5.0),
                     ..Default::default()

@@ -155,3 +155,10 @@ pub struct EntityDies {
 }
 
 impl CallbackEvent for EntityDies {}
+
+#[derive(Component, Clone, Eq, PartialEq, Debug)]
+pub struct LogIssuedEvent {
+    pub log: crate::resources::Log,
+}
+
+impl CallbackEvent for LogIssuedEvent {}
