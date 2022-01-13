@@ -122,29 +122,62 @@ pub fn load_tileset(
     commands.insert_resource(BasicTilesAtlas(texture_atlas_handle));
 }
 
-pub fn setup_stock_text(mut commands: Commands, asset_server: Res<AssetServer>) {
+pub fn setup_log_component(mut commands: Commands) {
+    // root level component ... possibly superfluous
     commands
-        .spawn_bundle(TextBundle {
-            node: Default::default(),
+        .spawn_bundle(NodeBundle {
             style: Style {
-                align_self: AlignSelf::FlexEnd,
-                position_type: PositionType::Absolute,
-                position: Rect {
-                    bottom: Val::Px(25.0),
-                    left: Val::Px(25.0),
-                    ..Default::default()
-                },
-                overflow: Overflow::Hidden,
+                size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
+                justify_content: JustifyContent::SpaceBetween,
                 ..Default::default()
             },
-            text: Text {
-                sections: vec![],
-                alignment: Default::default(),
-            },
+            color: Color::NONE.into(),
             ..Default::default()
         })
-        .insert(LogsTextBox);
+        .with_children(|parent| {
+            // content box; 95% width and 20% height, with 2.5% boundaries on sides
+            parent
+                .spawn_bundle(NodeBundle {
+                    style: Style {
+                        size: Size::new(Val::Percent(95.0), Val::Percent(20.0)),
+                        position: Rect {
+                            bottom: Val::Percent(2.5),
+                            left: Val::Percent(2.5),
+                            ..Default::default()
+                        },
+                        position_type: PositionType::Absolute,
+                        ..Default::default()
+                    },
+                    color: Color::rgba(0.65, 0.65, 0.65, 0.3).into(),
+                    ..Default::default()
+                })
+                .with_children(|parent| {
+                    parent
+                        .spawn_bundle(TextBundle {
+                            node: Default::default(),
+                            style: Style {
+                                align_self: AlignSelf::FlexEnd,
+                                position_type: PositionType::Absolute,
+                                position: Rect {
+                                    bottom: Val::Px(25.0),
+                                    left: Val::Px(25.0),
+                                    ..Default::default()
+                                },
+                                overflow: Overflow::Hidden,
+                                ..Default::default()
+                            },
+                            text: Text {
+                                sections: vec![],
+                                alignment: Default::default(),
+                            },
+                            ..Default::default()
+                        })
+                        .insert(LogsTextBox);
+                });
+        });
+}
 
+pub fn setup_fps_tracker(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands
         .spawn_bundle(TextBundle {
             node: Default::default(),

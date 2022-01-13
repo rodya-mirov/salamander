@@ -106,7 +106,8 @@ impl Plugin for MapPlugin {
             .add_startup_system_to_stage(WORLD_SETUP, setup_systems::make_map)
             .add_startup_system_to_stage(WORLD_SETUP, camera_setup)
             .add_startup_system_to_stage(WORLD_SETUP, setup_systems::setup_turn_counter)
-            .add_startup_system(setup_systems::setup_stock_text)
+            .add_startup_system(setup_systems::setup_fps_tracker)
+            .add_startup_system(setup_systems::setup_log_component)
             // input systems
             // TODO: remove this once we have real UI around this
             .add_system(bevy::input::system::exit_on_esc_system)
