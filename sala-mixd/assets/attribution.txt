@@ -1,0 +1,29 @@
+tiles/
+    basic_tiles.png
+        License:    CC-BY-SA 3.0
+        Author:     Jerom
+        Link:       https://opengameart.org/content/additions-to-32x32-fantasy-tileset
+
+    Free.png, Level.png, SlimeA.png
+        License:    CC-0 Universal
+        Author:     Henry Software
+        Link:       https://henrysoftware.itch.io/pixel-level
+
+sprites/
+    gabe-idle-run.png, mani-idle-run.png
+        License:    ???
+        Author:     ???
+        Link:       https://github.com/bevyengine/bevy/tree/main/assets/textures/rpg/chars
+
+        Note:       these are the example sprites on free / open bevy github so I assume they're fine to reuse, idk
+
+fonts/
+    FiraMono-Medium.ttf
+        License:    Open Font License
+        Author:     Carrois Apostrophe
+        Link:       https://fonts.google.com/specimen/Fira+Mono#about
+
+    FiraSans-Bold.ttf
+        License:    Open Font License
+        Author:     Carrois Apostrophe
+        Link:       https://fonts.google.com/specimen/Fira+Sans#standard-styles
