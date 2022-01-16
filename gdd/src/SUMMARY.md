@@ -5,9 +5,11 @@ Following the template at https://www.gamedeveloper.com/business/how-to-write-a-
 [Project Description]()
 
 - [Characters]()
-- [Story]()
+  - [Player Character: Alchemist]()
+  - [Player Character: Archaeologist]()
+- [Story and World]()
   - [Theme](story/theme.md)
-  - [Setting]()
+  - [Setting](story/setting.md)
   - [Story Progression](story/progression.md)
   - [Endings](story/endings.md)
 - [Gameplay]()

@@ -8,7 +8,7 @@ are worth helping.
 
 Throughout the game the conflict should revolve around the following themes:
 
-- **[Environmentalism]** People depend on the things that are destroying them
-- **[Misinformation / Confusion]** People are easily tricked, especially when the truth is frightening or inconvenient
-- **[Common Kindness]** People are often good, despite their flaws, and are worth saving
-- **[No Simple Answer]** There is no a cheap way out; we cannot proceed as we were before
+- **[Environmentalism]** People depend on the things that are destroying them.
+- **[Misinformation / Confusion]** People are easily tricked, especially when the truth is frightening or inconvenient.
+- **[Common Kindness]** People are often good, despite their flaws, and are worth saving.
+- **[No Simple Answer]** There is no a cheap way out; we cannot proceed as we were before.
