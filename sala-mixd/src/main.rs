@@ -5,6 +5,8 @@ fn main() {
         .add_plugins(DefaultPlugins)
         .add_system(bevy::input::system::exit_on_esc_system)
         .add_startup_system(setup)
+        .add_system(player_input)
+        .add_system(player_camera_control)
         .add_system(animate_sprite_system)
         .run();
 }
@@ -23,6 +25,59 @@ fn animate_sprite_system(
     }
 }
 
+// pixels per second of movement; this is in world space, not camera space
+const PLAYER_PIXELS_PER_SEC: f32 = 128.0;
+
+// scale is multiplicative, so this is applied additively to the log of the camera scale
+// so 1/e is "doubles in one second", 2/e is "quadruples in one second" and so on
+// must be positive
+const CAMERA_SPEED_PER_SEC: f32 = 1.0;
+
+fn player_input(
+    kb: Res<Input<KeyCode>>,
+    time: Res<Time>,
+    mut query: Query<&mut Transform, With<Player>>,
+) {
+    let dist = time.delta().as_secs_f32() * PLAYER_PIXELS_PER_SEC;
+    for mut transform in query.iter_mut() {
+        if kb.pressed(KeyCode::Left) {
+            transform.translation.x -= dist;
+        }
+        if kb.pressed(KeyCode::Right) {
+            transform.translation.x += dist;
+        }
+        if kb.pressed(KeyCode::Up) {
+            transform.translation.y += dist;
+        }
+        if kb.pressed(KeyCode::Down) {
+            transform.translation.y -= dist;
+        }
+    }
+}
+
+fn player_camera_control(kb: Res<Input<KeyCode>>, time: Res<Time>, mut query: Query<&mut OrthographicProjection, With<PlayerCamera>>) {
+    let dist = CAMERA_SPEED_PER_SEC * time.delta().as_secs_f32();
+
+    for mut projection in query.iter_mut() {
+        let mut log_scale = projection.scale.ln();
+
+        if kb.pressed(KeyCode::PageUp) {
+            log_scale -= dist;
+        }
+        if kb.pressed(KeyCode::PageDown) {
+            log_scale += dist;
+        }
+
+        projection.scale = log_scale.exp();
+    }
+}
+
+#[derive(Component)]
+struct Player;
+
+#[derive(Component)]
+struct PlayerCamera;
+
 fn setup(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
@@ -31,12 +86,12 @@ fn setup(
     let texture_handle = asset_server.load("sprites/gabe-idle-run.png");
     let texture_atlas = TextureAtlas::from_grid(texture_handle, Vec2::new(24.0, 24.0), 7, 1);
     let texture_atlas_handle = texture_atlases.add(texture_atlas);
-    commands.spawn_bundle(OrthographicCameraBundle::new_2d());
+    commands.spawn_bundle(OrthographicCameraBundle::new_2d()).insert(PlayerCamera);
     commands
         .spawn_bundle(SpriteSheetBundle {
             texture_atlas: texture_atlas_handle,
-            transform: Transform::from_scale(Vec3::splat(2.0)),
             ..Default::default()
         })
-        .insert(Timer::from_seconds(0.1, true));
+        .insert(Timer::from_seconds(0.1, true))
+        .insert(Player);
 }
